@@ -31,3 +31,6 @@ md/*
 !md/ИНСТРУКЦИЯ_ПРОВЕРКИ.md
 !md/participant_test.sh
 !md/Проверка сканера винных этикеток.md
+wines_images*
+wines_integrated.csv
+
