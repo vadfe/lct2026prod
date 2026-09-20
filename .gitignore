@@ -1,5 +1,9 @@
 .env
 .venv/
+/lct2026prod.iml
+/lct2026prod.egg-info/
+*.iml
+/.gigaide/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -31,3 +35,6 @@ md/*
 !md/ИНСТРУКЦИЯ_ПРОВЕРКИ.md
 !md/participant_test.sh
 !md/Проверка сканера винных этикеток.md
+
+
+
