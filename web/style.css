@@ -258,8 +258,8 @@ body {
     background: #f1f3f5;
     color: var(--text-main);
     font-weight: 600;
-    font-size: 12px;
-    padding: 6px 12px;
+    font-size: 10px;
+    padding: 4px 8px;
     border-radius: 20px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     display: flex;
@@ -273,8 +273,8 @@ body {
     transform: scale(0.95);
 }
 .badge-icon-wrapper {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     background: transparent;
     border-radius: 50%;
     display: flex;
@@ -283,8 +283,8 @@ body {
     flex-shrink: 0;
 }
 .badge-icon {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     object-fit: contain;
 }
 
