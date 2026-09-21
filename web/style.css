@@ -273,8 +273,8 @@ body {
     transform: scale(0.95);
 }
 .badge-icon-wrapper {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     background: transparent;
     border-radius: 50%;
     display: flex;
@@ -283,8 +283,8 @@ body {
     flex-shrink: 0;
 }
 .badge-icon {
-    width: 12px;
-    height: 12px;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
 }
 
