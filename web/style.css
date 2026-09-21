@@ -275,7 +275,7 @@ body {
 .badge-icon-wrapper {
     width: 28px;
     height: 28px;
-    background: #FDF9ED;
+    background: transparent;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -387,7 +387,7 @@ body {
 }
 
 .glass-slot.active-bg {
-    background: #F8ECC9;
+    background: #e9ecef;
 }
 
 .glass-img {
