@@ -81,7 +81,7 @@ function initRating(slug) {
             
             // Pulse animation
             const img = slot.querySelector('.glass-img');
-            img.style.transform = 'rotate(-15deg) scale(1.1)';
+            img.style.transform = 'rotate(15deg) scale(1.1)';
             setTimeout(() => { img.style.transform = ''; }, 200);
         };
     });

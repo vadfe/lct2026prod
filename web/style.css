@@ -396,7 +396,7 @@ body {
 }
 
 .glass-slot.active-bg .glass-img {
-    transform: rotate(-15deg);
+    transform: rotate(15deg);
 }
 
 .rating-stats {
