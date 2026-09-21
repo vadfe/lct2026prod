@@ -253,8 +253,8 @@ body {
     position: absolute;
     top: 16px;
     right: 16px;
-    background: #F8ECC9;
-    color: #8F3D42;
+    background: #f1f3f5;
+    color: var(--text-main);
     font-weight: 600;
     font-size: 12px;
     padding: 6px 12px;
