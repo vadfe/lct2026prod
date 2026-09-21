@@ -237,7 +237,7 @@ body {
 }
 
 .wine-image-container {
-    background: #f8f9fa;
+    background: transparent;
     height: 300px;
     display: flex;
     align-items: center;
