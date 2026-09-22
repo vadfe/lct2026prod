@@ -9,7 +9,12 @@ class SearchResult(BaseModel):
     title: str
     manufacturer: str
     description: str
+    color: str | None = None
+    category: str | None = None
+    region: str | None = None
+    grape: str | None = None
     image_url: str
+    bottle_image_url: str | None = None
     dino_similarity: float
     sift_score: float
     inliers: int

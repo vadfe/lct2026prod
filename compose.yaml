@@ -39,6 +39,7 @@ services:
       - ./app:/srv/app/app:ro
       - ./web:/srv/app/web:ro
       - ./alembic:/srv/app/alembic:ro
+      - ./wines_integrated.csv:/srv/app/wines_integrated.csv:ro
     depends_on:
       db:
         condition: service_healthy

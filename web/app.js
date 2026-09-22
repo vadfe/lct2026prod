@@ -156,18 +156,29 @@ async function submit(blob, cropped) {
             // Populate fields
             elTitle.textContent = item.title || 'Неизвестное вино';
             elWinery.textContent = item.manufacturer || '';
-            imgWine.src = config.apiBase + item.image_url;
+            
+            // Show bottle image if available, otherwise fall back to label crop
+            if (item.bottle_image_url) {
+                imgWine.src = config.apiBase + item.bottle_image_url;
+            } else {
+                imgWine.src = config.apiBase + item.image_url;
+            }
             imgWine.onerror = () => { imgWine.src = 'https://via.placeholder.com/300x500?text=Wine'; };
             
-            // Clear unused fields based on user request
-            if (elColor) elColor.textContent = '';
-            if (elCategory) elCategory.textContent = '';
-            if (elRegion) elRegion.textContent = '';
-            if (elGrape) elGrape.textContent = '';
-            if (elDescription) elDescription.textContent = '';
+            // Fill wine detail fields from API response
+            if (elColor) elColor.textContent = item.color || '';
+            if (elCategory) elCategory.textContent = item.category || '';
+            if (elRegion) elRegion.textContent = item.region || '';
+            if (elGrape) elGrape.textContent = item.grape || '';
+            if (elDescription) elDescription.textContent = item.description || '';
+            
+            // Hide empty tags
+            if (elColor && !item.color) elColor.style.display = 'none'; else if (elColor) elColor.style.display = '';
+            if (elCategory && !item.category) elCategory.style.display = 'none'; else if (elCategory) elCategory.style.display = '';
+            if (elRegion && !item.region) elRegion.style.display = 'none'; else if (elRegion) elRegion.style.display = '';
             
             // Init rating using item id or title as slug
-            const slug = item.id || item.title;
+            const slug = item.slug || item.title;
             initRating(slug);
             
             showView('result');
