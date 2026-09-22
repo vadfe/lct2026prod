@@ -692,3 +692,83 @@ body {
 #wine-image {
   cursor: zoom-in;
 }
+
+/* ── Wine card info section ── */
+.wine-info {
+  padding: 16px 0 8px;
+}
+
+.wine-winery {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.wine-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 14px;
+  line-height: 1.25;
+}
+
+/* ── Tags row: Цвет · Тип · Регион ── */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 5px 12px;
+  background: #f1f1f3;
+  border: 1px solid #e0e0e4;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  white-space: nowrap;
+}
+
+/* hide tag element when empty */
+.tag:empty {
+  display: none;
+}
+
+/* ── Property row: Сорт ── */
+.property {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.prop-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.prop-value {
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+/* hide property row when value is empty */
+.property:has(.prop-value:empty) {
+  display: none;
+}
+
+/* ── Description ── */
+.wine-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+  margin-top: 4px;
+}
