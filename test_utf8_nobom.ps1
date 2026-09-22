@@ -1,0 +1,1 @@
+Write-Host " Тест без BOM\n
