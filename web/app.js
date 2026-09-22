@@ -283,6 +283,47 @@ if (badge) {
     });
 }
 
+// Toast notification helper
+let toastTimeout = null;
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
+}
+
+// Sommelier interactions (stubs)
+const btnMap = document.getElementById('btn-map');
+if (btnMap) {
+    btnMap.addEventListener('click', () => {
+        showToast('📍 Раздел «Карта» находится в разработке');
+    });
+}
+
+const btnChat = document.getElementById('btn-chat');
+if (btnChat) {
+    btnChat.addEventListener('click', () => {
+        showToast('💬 Чат с сомелье скоро станет доступен');
+    });
+}
+
+const btnAnalogs = document.getElementById('btn-sommelier-analogs');
+if (btnAnalogs) {
+    btnAnalogs.addEventListener('click', () => {
+        showToast('🍷 Подбор аналогов появится в следующем обновлении');
+    });
+}
+
+document.querySelectorAll('.btn-pairing').forEach(btn => {
+    btn.addEventListener('click', () => {
+        btn.classList.toggle('selected');
+    });
+});
+
 // Start sequence
 document.addEventListener('DOMContentLoaded', () => {
     start();
