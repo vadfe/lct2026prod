@@ -5,14 +5,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 LANG=C.UTF-8
 WORKDIR /srv/app
 
 # Layer 1: System packages (cached)
-RUN apt-get update && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 libzbar0 && rm -rf /var/lib/apt/lists/*
 
 # Layer 2: Heavy GPU wheels - downloaded and cached ONCE, never invalidated by app code changes
 RUN python -m pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cu128 "torch==2.9.0+cu128" "torchvision==0.24.0+cu128"
 
 # Layer 3: Python dependencies from pyproject.toml (cached)
 COPY pyproject.toml README.md ./
-RUN python -m pip install --no-cache-dir .
+RUN python -m pip install --no-cache-dir . && \
+    python -m pip uninstall -y onnxruntime && \
+    python -m pip install --no-cache-dir onnxruntime-gpu
 
 # Layer 4: Application code and configs (fast layer)
 COPY app ./app
