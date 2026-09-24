@@ -15,7 +15,7 @@ import asyncio
 import cv2
 import numpy as np
 from app.core.dependencies import get_pipeline_v1
-from fastapi import UploadFile, File
+from fastapi import UploadFile, File, Depends
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
