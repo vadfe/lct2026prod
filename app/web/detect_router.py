@@ -10,6 +10,12 @@ from ultralytics import YOLO
 
 from app.core.config import get_settings
 from app.services.detector import DetectorService
+from pydantic import BaseModel
+import asyncio
+import cv2
+import numpy as np
+from app.core.dependencies import get_pipeline_v1
+from fastapi import UploadFile, File
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
@@ -136,3 +142,53 @@ async def predict_import_image(
         "detections": detections,
         "segmentations": segmentations,
     }
+
+
+class ProcessSampleRequest(BaseModel):
+    sample_filename: str
+
+@router.get("/api/samples")
+async def get_studio_samples():
+    images_dir = get_imports_images_dir()
+    if not images_dir.is_dir():
+        return {"samples": []}
+    allowed_exts = {".webp", ".jpg", ".jpeg", ".png"}
+    files = [p for p in sorted(images_dir.iterdir()) if p.is_file() and p.suffix.lower() in allowed_exts][:50]
+    samples = []
+    for p in files:
+        samples.append({
+            "filename": p.name,
+            "title": p.stem.replace("_", " ").title(),
+            "cam_url": f"/api/detect/image/{p.name}",
+            "has_catalog": True
+        })
+    return {"samples": samples}
+
+@router.post("/api/process_sample")
+async def process_studio_sample(req: ProcessSampleRequest, request: Request, pipeline = Depends(get_pipeline_v1)):
+    images_dir = get_imports_images_dir()
+    file_path = (images_dir / req.sample_filename).resolve()
+    if images_dir not in file_path.parents or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    engine = pipeline.dewarp_engine
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Dewarp engine not ready")
+        
+    img_bgr = cv2.imread(str(file_path))
+    res = await asyncio.to_thread(engine.process_image, img_bgr)
+    res["filename"] = req.sample_filename
+    return res
+
+@router.post("/api/process_upload")
+async def process_studio_upload(file: UploadFile = File(...), request: Request = None, pipeline = Depends(get_pipeline_v1)):
+    engine = pipeline.dewarp_engine
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Dewarp engine not ready")
+        
+    contents = await file.read()
+    nparr = np.frombuffer(contents, np.uint8)
+    img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    res = await asyncio.to_thread(engine.process_image, img_bgr)
+    res["filename"] = file.filename
+    return res

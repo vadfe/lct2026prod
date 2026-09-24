@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Своё Вино | Сканер</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="scanner.css?v=3">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <img src="znak.png" alt="Знак" style="width: 24px; height: 24px; border-radius: 50%;">
+                <span>Своё Вино</span>
+            </div>
+            <div class="header-right">
+                <div class="server-status" id="server-status" title="Статус подключения к серверу">
+                    <span class="status-dot"></span>
+                    <span class="status-label" id="status-text">...</span>
+                </div>
+                <button class="btn-icon" id="btn-settings" title="Настройки подключения">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Scanner View -->
+        <main id="scanner-view" class="view active">
+            <div class="scanner-frame">
+                <video id="camera-feed" autoplay playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: none;"></video>
+                <div class="corners top-left" style="z-index: 10;"></div>
+                <div class="corners top-right" style="z-index: 10;"></div>
+                <div class="corners bottom-left" style="z-index: 10;"></div>
+                <div class="corners bottom-right" style="z-index: 10;"></div>
+                <p class="scan-instruction" style="z-index: 10;">Наведите камеру на этикетку<br>или загрузите фото</p>
+                <div class="scanning-line hidden" style="z-index: 10;"></div>
+            </div>
+            
+            <div class="controls" style="display: flex; gap: 15px; justify-content: center; align-items: center; padding-bottom: 20px;">
+                <button id="btn-snap" class="hidden" style="width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 4px solid var(--primary); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.15s ease;" title="Сделать снимок"></button>
+                <label class="btn btn-primary btn-upload" id="label-upload" style="margin:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    <span>Выбрать фото</span>
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                </label>
+            </div>
+        </main>
+
+        <!-- Loading View -->
+        <main id="loading-view" class="view">
+            <div class="spinner"></div>
+            <p id="loading-text">Анализ этикетки...</p>
+        </main>
+
+        <!-- Result View -->
+        <main id="result-view" class="view">
+            <div class="result-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="btn-back" id="btn-back" style="margin-bottom: 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Назад к сканеру
+                </button>
+                <button id="btn-show-original" style="background: none; border: none; color: var(--text-secondary); font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    Исходное фото
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+            </div>
+            <div class="wine-card">
+                <div class="wine-image-container">
+                    <div class="confidence-badge" id="confidence-badge">
+                        <div class="badge-icon-wrapper">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2b8a3e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="badge-icon-svg">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        Уверенность <span id="confidence-score">100%</span>
+                    </div>
+                    <img id="wine-image" src="" alt="Wine Image">
+                    <div class="people-rating-badge" id="people-rating-badge" style="cursor: pointer;">
+                        <div class="badge-icon-wrapper">
+                            <img src="img/glass_filled_straight.png" alt="" class="badge-icon">
+                        </div>
+                        Народный рейтинг <span id="badge-score">-</span>
+                    </div>
+                </div>
+                
+                <div class="wine-info">
+                    <p class="wine-winery" id="wine-winery"></p>
+                    <h2 class="wine-title" id="wine-title"></h2>
+                    
+                    <div class="tags">
+                        <span class="tag" id="wine-color"></span>
+                        <span class="tag" id="wine-category"></span>
+                        <span class="tag" id="wine-region"></span>
+                    </div>
+                    
+                    <div class="property">
+                        <span class="prop-label">Сорт:</span>
+                        <span class="prop-value" id="wine-grape"></span>
+                    </div>
+                    
+                    <p class="wine-description" id="wine-description"></p>
+                </div>
+            </div>
+
+            <!-- Народный рейтинг -->
+            <section class="rating-section" id="rating-section">
+                <h3>Поставь свою оценку</h3>
+                
+                <div class="glasses-container" id="glasses-container">
+                    <div class="glass-slot" data-index="1"><img src="img/glass_empty_straight.png" alt="1" class="glass-img"></div>
+                    <div class="glass-slot" data-index="2"><img src="img/glass_empty_straight.png" alt="2" class="glass-img"></div>
+                    <div class="glass-slot" data-index="3"><img src="img/glass_empty_straight.png" alt="3" class="glass-img"></div>
+                    <div class="glass-slot" data-index="4"><img src="img/glass_empty_straight.png" alt="4" class="glass-img"></div>
+                    <div class="glass-slot" data-index="5"><img src="img/glass_empty_straight.png" alt="5" class="glass-img"></div>
+                </div>
+                <div class="rating-stats">
+                    <div id="user-rating-text">Ваша оценка: - из 5</div>
+                    <div class="stats-small">Всего оценок: <span id="total-votes">0</span> &bull; Средний балл: <span id="avg-score">0.0</span></div>
+                </div>
+            </section>
+
+            <!-- Sommelier Section (Retention) -->
+            <div class="sommelier-section mt-10">
+                <h3 style="display: flex; align-items: center;"><div class="badge-icon-wrapper" style="margin-right: 8px;"><img src="img/glass_filled_straight.png" class="badge-icon" alt=""></div>Цифровой сомелье</h3>
+                <p>К чему вы подбираете это вино?</p>
+                <div class="pairing-options">
+                    <button class="btn-pairing">Мясо</button>
+                    <button class="btn-pairing">Рыба</button>
+                    <button class="btn-pairing">Сыры</button>
+                </div>
+                <button class="btn btn-secondary btn-full mt-10" id="btn-sommelier-analogs">Подобрать аналоги</button>
+                
+                <div class="sommelier-actions mt-10">
+                    <button class="btn btn-secondary" id="btn-map" title="Карта виноделен и магазинов">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                            <line x1="8" y1="2" x2="8" y2="18"></line>
+                            <line x1="16" y1="6" x2="16" y2="22"></line>
+                        </svg>
+                        <span>Карта</span>
+                    </button>
+                    <button class="btn btn-secondary" id="btn-chat" title="Чат с сомелье">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>Чат</span>
+                    </button>
+                </div>
+            </div>
+            <div id="toast" class="toast"></div>
+        </main>
+
+        <!-- Original Photo View -->
+        <main id="original-view" class="view">
+            <div class="result-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="btn-back" id="btn-back-to-result" style="margin-bottom: 0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Назад к результату поиска
+                </button>
+                <button id="btn-add-to-db" style="background: none; border: none; color: var(--primary); font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    Добавить в базу
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+            </div>
+            
+            <div class="wine-card">
+                <div class="wine-image-container">
+                    <img id="original-img" src="" alt="Original Photo" style="cursor: zoom-in;">
+                </div>
+                
+                <div class="wine-info" style="opacity: 0.5;">
+                    <div style="height: 14px; background: #e0e0e0; border-radius: 4px; width: 40%; margin-bottom: 12px;"></div>
+                    <div style="height: 24px; background: #e0e0e0; border-radius: 4px; width: 80%; margin-bottom: 16px;"></div>
+                    
+                    <div class="tags">
+                        <div style="height: 26px; background: #e0e0e0; border-radius: 6px; width: 80px;"></div>
+                        <div style="height: 26px; background: #e0e0e0; border-radius: 6px; width: 70px;"></div>
+                        <div style="height: 26px; background: #e0e0e0; border-radius: 6px; width: 90px;"></div>
+                    </div>
+                    
+                    <div style="height: 14px; background: #e0e0e0; border-radius: 4px; width: 100%; margin-bottom: 10px; margin-top: 24px;"></div>
+                    <div style="height: 14px; background: #e0e0e0; border-radius: 4px; width: 100%; margin-bottom: 10px;"></div>
+                    <div style="height: 14px; background: #e0e0e0; border-radius: 4px; width: 60%;"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Мост к моделям (RTX 3090)</h3>
+                    <button id="btn-close-modal" class="btn-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="settings-hint">
+                        Укажите адрес сервера (Cloudflare Tunnel), на котором работает инференс:
+                    </p>
+                    <div class="form-group">
+                        <label for="input-api-url">API Base URL:</label>
+                        <input type="url" id="input-api-url" placeholder="https://xxxx.trycloudflare.com">
+                        <small class="field-hint">Оставьте пустым для работы с локального хоста (127.0.0.1:8080)</small>
+                    </div>
+                    <div id="connection-feedback" class="feedback-box hidden"></div>
+                    <div class="modal-actions">
+                        <button id="btn-test-connection" class="btn btn-secondary">Проверить связь</button>
+                        <button id="btn-save-settings" class="btn btn-primary">Сохранить</button>
+                    </div>
+                    <button id="btn-reset-local" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:12px;">Сбросить на локальный (127.0.0.1:8080)</button>
+                </div>
+            </div>
+        </div>
+        <!-- Lightbox Modal -->
+        <div id="lightbox-modal" class="lightbox-modal hidden">
+            <div class="lightbox-toolbar">
+                <div class="lightbox-title" id="lightbox-title">Просмотр изображения</div>
+                <div class="lightbox-controls">
+                    <button id="btn-zoom-out" title="Уменьшить (Scroll Down)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </button>
+                    <button id="btn-zoom-reset" title="Сбросить масштаб">100%</button>
+                    <button id="btn-zoom-in" title="Увеличить (Scroll Up)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </button>
+                    <button id="btn-close-lightbox" title="Закрыть (Esc)">&times;</button>
+                </div>
+            </div>
+            <div class="lightbox-canvas" id="lightbox-canvas">
+                <img id="lightbox-img" src="" alt="Full Resolution Image" draggable="false">
+            </div>
+        </div>
+    </div>
+
+    <script src="scanner.js"></script>
+</body>
+</html>

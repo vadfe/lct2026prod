@@ -8,6 +8,7 @@ const overlay = document.getElementById('overlay');
 const btnSnap = document.getElementById('btn-snap');
 const fileInput = document.getElementById('file-input');
 const btnBack = document.getElementById('btn-back');
+const btnShowOriginal = document.getElementById('btn-show-original');
 
 // Views
 const views = {
@@ -40,6 +41,7 @@ let currentBox = null;
 let busy = false;
 let stream = null;
 let currentSlug = null;
+let currentBlobUrl = null;
 
 // Rating logic
 let globalRatings = JSON.parse(localStorage.getItem('vina_global_ratings')) || {};
@@ -139,6 +141,9 @@ async function submit(blob, cropped) {
     busy = true;
     showView('loading');
     
+    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = URL.createObjectURL(blob);
+    
     try {
         const body = new FormData();
         body.append('image', blob, 'image.jpg');
@@ -177,6 +182,21 @@ async function submit(blob, cropped) {
             if (elCategory && !item.category) elCategory.style.display = 'none'; else if (elCategory) elCategory.style.display = '';
             if (elRegion && !item.region) elRegion.style.display = 'none'; else if (elRegion) elRegion.style.display = '';
             
+            // Confidence score
+            const elConfidence = document.getElementById('confidence-score');
+            if (elConfidence) {
+                let conf = 85;
+                if (typeof item.confidence === 'number' && item.confidence > 0) {
+                    conf = item.confidence > 1 ? Math.round(item.confidence) : Math.round(item.confidence * 100);
+                } else if (typeof item.dino_similarity === 'number' && item.dino_similarity > 0) {
+                    conf = Math.min(100, Math.max(0, Math.round(item.dino_similarity * 100)));
+                } else if (typeof item.sift_score === 'number' && item.sift_score > 0) {
+                    conf = Math.min(100, Math.max(0, Math.round(item.sift_score * 100)));
+                }
+                conf = Math.min(100, Math.max(0, conf));
+                elConfidence.textContent = `${conf}%`;
+            }
+
             // Init rating using item id or title as slug
             const slug = item.slug || item.title;
             initRating(slug);
@@ -323,6 +343,204 @@ document.querySelectorAll('.btn-pairing').forEach(btn => {
         btn.classList.toggle('selected');
     });
 });
+
+// Lightbox logic
+const lightboxModal = document.getElementById('lightbox-modal');
+const lightboxImg = document.getElementById('lightbox-img');
+const btnCloseLightbox = document.getElementById('btn-close-lightbox');
+const btnZoomIn = document.getElementById('btn-zoom-in');
+const btnZoomOut = document.getElementById('btn-zoom-out');
+const btnZoomReset = document.getElementById('btn-zoom-reset');
+const lightboxCanvas = document.getElementById('lightbox-canvas');
+
+let zoomLevel = 1;
+let isDragging = false;
+let startX = 0, startY = 0;
+let translateX = 0, translateY = 0;
+
+function updateLightboxTransform() {
+    if (lightboxImg) {
+        lightboxImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;
+    }
+}
+
+function openLightbox(src) {
+    if (!lightboxModal || !lightboxImg) return;
+    lightboxImg.src = src;
+    zoomLevel = 1;
+    translateX = 0;
+    translateY = 0;
+    updateLightboxTransform();
+    lightboxModal.classList.remove('hidden');
+}
+
+function closeLightbox() {
+    if (!lightboxModal) return;
+    lightboxModal.classList.add('hidden');
+    lightboxImg.src = '';
+}
+
+if (imgWine) {
+    imgWine.addEventListener('click', () => {
+        if (imgWine.src) openLightbox(imgWine.src);
+    });
+}
+
+if (btnShowOriginal) {
+    btnShowOriginal.addEventListener('click', () => {
+        if (currentBlobUrl) {
+            openLightbox(currentBlobUrl);
+        }
+    });
+}
+
+if (btnCloseLightbox) btnCloseLightbox.addEventListener('click', closeLightbox);
+if (lightboxModal) lightboxModal.addEventListener('click', (e) => {
+    if (e.target === lightboxModal || e.target === lightboxCanvas) closeLightbox();
+});
+
+if (btnZoomIn) btnZoomIn.addEventListener('click', () => { zoomLevel += 0.25; updateLightboxTransform(); });
+if (btnZoomOut) btnZoomOut.addEventListener('click', () => { zoomLevel = Math.max(0.25, zoomLevel - 0.25); updateLightboxTransform(); });
+if (btnZoomReset) btnZoomReset.addEventListener('click', () => { zoomLevel = 1; translateX = 0; translateY = 0; updateLightboxTransform(); });
+
+if (lightboxCanvas) {
+    lightboxCanvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        lightboxCanvas.style.cursor = 'grabbing';
+    });
+    lightboxCanvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateLightboxTransform();
+    });
+    lightboxCanvas.addEventListener('mouseup', () => {
+        isDragging = false;
+        lightboxCanvas.style.cursor = 'grab';
+    });
+    lightboxCanvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+        lightboxCanvas.style.cursor = 'grab';
+    });
+    // touch support
+    lightboxCanvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - translateX;
+            startY = e.touches[0].clientY - translateY;
+        }
+    }, {passive: true});
+    lightboxCanvas.addEventListener('touchmove', (e) => {
+        if (!isDragging || e.touches.length !== 1) return;
+        translateX = e.touches[0].clientX - startX;
+        translateY = e.touches[0].clientY - startY;
+        updateLightboxTransform();
+    }, {passive: true});
+    lightboxCanvas.addEventListener('touchend', () => { isDragging = false; });
+}
+
+// --- Settings Modal Logic ---
+const btnSettings = document.getElementById('btn-settings');
+const settingsModal = document.getElementById('settings-modal');
+const btnCloseModal = document.getElementById('btn-close-modal');
+const modalBackdrop = document.querySelector('.modal-backdrop');
+const inputApiUrl = document.getElementById('input-api-url');
+const btnTestConnection = document.getElementById('btn-test-connection');
+const btnSaveSettings = document.getElementById('btn-save-settings');
+const feedbackBox = document.getElementById('connection-feedback');
+const btnResetLocal = document.getElementById('btn-reset-local');
+const statusText = document.getElementById('status-text');
+const statusDot = document.querySelector('.status-dot');
+
+// Override config.apiBase with saved localStorage if present
+const savedApiUrl = localStorage.getItem('vina_api_url');
+if (savedApiUrl !== null) {
+    config.apiBase = savedApiUrl;
+}
+
+function openSettings() {
+    if (inputApiUrl) inputApiUrl.value = localStorage.getItem('vina_api_url') || '';
+    if (feedbackBox) feedbackBox.className = 'feedback-box hidden';
+    if (settingsModal) settingsModal.classList.remove('hidden');
+}
+
+function closeSettings() {
+    if (settingsModal) settingsModal.classList.add('hidden');
+}
+
+function showFeedback(text, type) {
+    if (!feedbackBox) return;
+    feedbackBox.textContent = text;
+    feedbackBox.className = `feedback-box ${type}`;
+}
+
+if (btnSettings) btnSettings.addEventListener('click', openSettings);
+if (btnCloseModal) btnCloseModal.addEventListener('click', closeSettings);
+if (modalBackdrop) modalBackdrop.addEventListener('click', closeSettings);
+
+if (btnResetLocal) {
+    btnResetLocal.addEventListener('click', () => {
+        localStorage.removeItem('vina_api_url');
+        config.apiBase = '';
+        if (inputApiUrl) inputApiUrl.value = '';
+        closeSettings();
+        checkServerHealth();
+    });
+}
+
+if (btnTestConnection) {
+    btnTestConnection.addEventListener('click', async () => {
+        const testUrl = inputApiUrl.value.trim().replace(/\/+$/, '');
+        showFeedback('Проверка соединения...', '');
+        try {
+            const res = await fetch(`${testUrl || ''}/api/ready`);
+            if (res.ok) {
+                showFeedback(`Успешно! Сервер доступен.`, 'success');
+            } else {
+                showFeedback('Не удалось связаться с сервером.', 'error');
+            }
+        } catch (e) {
+            showFeedback('Не удалось связаться с сервером.', 'error');
+        }
+    });
+}
+
+if (btnSaveSettings) {
+    btnSaveSettings.addEventListener('click', () => {
+        const val = inputApiUrl.value.trim().replace(/\/+$/, '');
+        if (val) {
+            localStorage.setItem('vina_api_url', val);
+            config.apiBase = val;
+        } else {
+            localStorage.removeItem('vina_api_url');
+            config.apiBase = '';
+        }
+        closeSettings();
+        checkServerHealth();
+    });
+}
+
+async function checkServerHealth() {
+    if (!statusText || !statusDot) return;
+    statusDot.className = 'status-dot';
+    statusText.textContent = 'Проверка...';
+    try {
+        const res = await fetch(`${config.apiBase}/api/ready`);
+        if (res.ok) {
+            statusDot.className = 'status-dot online';
+            statusText.textContent = 'Онлайн';
+        } else {
+            statusDot.className = 'status-dot offline';
+            statusText.textContent = 'Офлайн';
+        }
+    } catch (e) {
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'Офлайн';
+    }
+}
+checkServerHealth();
 
 // Start sequence
 document.addEventListener('DOMContentLoaded', () => {
