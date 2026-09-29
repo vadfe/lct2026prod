@@ -53,6 +53,21 @@ def search(api: str, image: Path) -> tuple[dict, float]:
     return answer, (time.perf_counter() - started) * 1000
 
 
+def eval_predict(api: str, image: Path) -> dict:
+    """Call the customer's compact eval endpoint and return its slug."""
+    boundary = uuid.uuid4().hex
+    content_type = mimetypes.guess_type(image.name)[0] or "application/octet-stream"
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{image.name}"\r\n'
+        f"Content-Type: {content_type}\r\n\r\n"
+    ).encode() + image.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
+    request = urllib.request.Request(
+        f"{api}/api/v1/eval/predict", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    )
+    with urllib.request.urlopen(request, timeout=180) as response:
+        return json.load(response)
+
+
 def save_thumb(image: Image.Image, target: Path) -> None:
     image = image.convert("RGB")
     image.thumbnail((THUMB, THUMB))
@@ -111,11 +126,13 @@ def main() -> None:
     for index, photo in enumerate(photos, 1):
         try:
             answer, latency = search(args.api, photo)
+            eval_answer = eval_predict(args.api, photo)
         except (urllib.error.URLError, TimeoutError) as error:
             print(f"\n{photo.name}: {error}", file=sys.stderr)
             rows.append({"n": index, "photo": photo, "error": str(error), "label": labels.get(photo.name)})
             continue
 
+        eval_slug = eval_answer.get("slug")
         crop_file = None
         if answer.get("bbox_crop"):
             crop_file = f"crops/{index:03d}.jpg"
@@ -147,9 +164,10 @@ def main() -> None:
             "latency": round(latency),
             "label": label,
             "verdict": verdict(label, status, slug),
+            "eval_slug": eval_slug,
         })
         slim = {key: value for key, value in answer.items() if key not in ("bbox_crop", "v4_query_crop")}
-        raw.append({"image_path": photo.name, "latency_ms": round(latency), **slim})
+        raw.append({"image_path": photo.name, "latency_ms": round(latency), "eval_slug": eval_slug, **slim})
         print(f"\r{index}/{len(photos)}", end="", file=sys.stderr, flush=True)
     print(file=sys.stderr)
 
@@ -163,18 +181,22 @@ def write_csv(out: Path, rows: list[dict]) -> None:
     with (out / "report.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle, delimiter=";")
         writer.writerow([
-            "№", "Фото", "Путь к фото", "Статус", "Распознано", "Производитель", "Slug победителя", "Уверенность",
-            "Время клиента, мс", "Время сервиса, мс", "Эталонная этикетка", "Ожидаемый slug", "Оценка",
+            "№", "Фото", "Путь к фото", "Статус", "Распознано", "Производитель", "Slug победителя", "Slug eval/predict",
+            "Совпадает", "Уверенность", "Время клиента, мс", "Время сервиса, мс", "Эталонная этикетка",
+            "Ожидаемый slug", "Оценка",
         ])
         for row in rows:
             answer = row.get("answer") or {}
             winner = row.get("winner") or {}
             reference = row.get("reference") or {}
             label = row.get("label") or {}
+            winner_slug = winner.get("slug", "")
+            eval_slug = row.get("eval_slug", "")
+            match = "да" if winner_slug and eval_slug and winner_slug == eval_slug else "нет" if eval_slug else ""
             writer.writerow([
                 row["n"], row["photo"].name, str(row["photo"]),
                 STATUS_RU.get(answer.get("status"), row.get("error", "")),
-                winner.get("title", ""), winner.get("manufacturer", ""), winner.get("slug", ""),
+                winner.get("title", ""), winner.get("manufacturer", ""), winner_slug, eval_slug, match,
                 answer.get("confidence", ""), row.get("latency", ""), (answer.get("timings") or {}).get("total_ms", ""),
                 row["ref"] or "", label.get("expected_slug", "") or label.get("status", ""), row.get("verdict", ""),
             ])
@@ -216,10 +238,19 @@ def write_html(out: Path, rows: list[dict], api: str) -> None:
         note = f'<div class="muted">{esc(label.get("note"))}</div>' if label.get("note") else ""
         verdict_cls = {"верно": "good", "не оценивается": "muted", "нет разметки": "muted", "похоже (вина нет в каталоге)": "warn"}.get(row["verdict"], "bad")
         timings = answer.get("timings") or {}
+        winner_slug = esc(winner["slug"]) if winner else ""
+        eval_slug = esc(row.get("eval_slug") or "")
+        eval_match = winner_slug == eval_slug if winner_slug and eval_slug else (eval_slug == "" and not winner)
+        eval_html = (
+            f'<code>{eval_slug}</code>'
+            f'<div class="{"good" if eval_match else "bad"}">{"совпадает" if eval_match else "РАСХОЖДЕНИЕ"}</div>'
+            if eval_slug else '<span class="muted">—</span>'
+        )
         body.append(
             f'<tr data-status="{status}" data-verdict="{esc(row["verdict"])}">'
             f'<td>{row["n"]}</td><td class="img">{crop}</td><td>{link}</td>'
             f'<td><span class="st {status}">{STATUS_RU.get(status, status)}</span><br>{name}</td>'
+            f'<td>{eval_html}</td>'
             f'<td class="num">{answer["confidence"] if answer.get("confidence") is not None else "—"}</td>'
             f'<td class="num">{row["latency"]}<div class="muted">сервис {timings.get("total_ms", "—")}</div></td>'
             f'<td class="img">{ref}</td>'
@@ -243,7 +274,7 @@ code{{font-size:11px;color:#555}} .summary span{{margin-right:18px}}
 <span>Вино в каталоге: top-1 верно <b>{correct}</b> из {len(inside)} ({100 * correct / max(1, len(inside)):.1f}%)</span>
 <span>Вина нет в каталоге ({len(outside)}): «нет в каталоге» {out_counts['not_in_catalog']}, похоже {out_counts['probable']}, ложно «найдено» {out_counts['found']}</span>
 <span>Время, мс: медиана {median}, макс {latencies[-1] if latencies else 0}</span></p>
-<table><thead><tr><th>№</th><th>Кроп входного фото</th><th>Исходное фото</th><th>Распознано</th><th>Уверенность</th><th>Время, мс</th><th>Эталонная этикетка каталога</th><th>Разметка / оценка</th></tr></thead>
+<table><thead><tr><th>№</th><th>Кроп входного фото</th><th>Исходное фото</th><th>Распознано (cascade/search)</th><th>Slug eval/predict</th><th>Уверенность</th><th>Время, мс</th><th>Эталонная этикетка каталога</th><th>Разметка / оценка</th></tr></thead>
 <tbody>{''.join(body)}</tbody></table></body></html>"""
     (out / "report.html").write_text(page, encoding="utf-8")
 
