@@ -123,7 +123,7 @@ async def predict_eval(
     source = await decode_upload(image, images, settings)
     t0 = time.perf_counter()
     response = await pipeline.predict_top1(
-        source, ProductRepository(session), is_already_crop=False, threshold=None,
+        source, ProductRepository(session), is_already_crop=False, threshold=settings.cascade_predict_threshold,
     )
     latency_ms = (time.perf_counter() - t0) * 1000
     return PredictResponse(
