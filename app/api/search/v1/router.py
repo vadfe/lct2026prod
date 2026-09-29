@@ -8,8 +8,16 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.core.dependencies import get_detector, get_images, get_pipeline_v1, get_segmenter, get_session
+from app.core.dependencies import (
+    get_detector,
+    get_images,
+    get_pipeline_cascade,
+    get_pipeline_v1,
+    get_segmenter,
+    get_session,
+)
 from app.db.repositories.products import ProductRepository
+from app.pipelines.search.cascade.pipeline import CascadeSearchPipeline
 from app.pipelines.search.v1.pipeline import SearchPipelineV1
 from app.schemas.search.v1 import PredictResponse, SearchResponse
 from app.services.augment import apply_random_hard_augmentation
@@ -102,21 +110,17 @@ async def predict_eval(
     image: Annotated[UploadFile, File()],
     session: AsyncSession = Depends(get_session),
     images: ImageService = Depends(get_images),
-    detector: DetectorService = Depends(get_detector),
-    segmenter: Annotated[SegmenterService | None, Depends(get_segmenter)] = None,
-    pipeline: SearchPipelineV1 = Depends(get_pipeline_v1),
+    pipeline: CascadeSearchPipeline = Depends(get_pipeline_cascade),
     settings: Settings = Depends(get_settings),
 ) -> PredictResponse:
-    """Predict top-1 wine slug for verification benchmark script."""
+    """Predict top-1 wine slug for the customer's verification benchmark.
+
+    Previously this endpoint ran only v1 DINOv2. It now delegates to the full
+    cascade pipeline (v1 coarse + optional v4 SigLIP 2/OCR refinement) and
+    returns only the slug, with no confidence threshold applied.
+    """
     source = await decode_upload(image, images, settings)
-    query_prep = QueryPrepV3(
-        detector=detector,
-        segmenter=segmenter,
-        target_size=settings.canonical_size_v4,
-        padding_ratio=0.05,
+    response = await pipeline.predict_top1(
+        source, ProductRepository(session), is_already_crop=False, threshold=None,
     )
-    prep = await asyncio.to_thread(query_prep.prepare, source)
-    response = await pipeline.run(prep.image, ProductRepository(session), k=1)
-    if response.winner and response.winner.slug:
-        return PredictResponse(slug=response.winner.slug)
-    return PredictResponse(slug=None)
+    return PredictResponse(slug=response.slug)

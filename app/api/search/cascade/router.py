@@ -9,6 +9,7 @@ from app.core.dependencies import get_images, get_pipeline_cascade, get_session
 from app.db.repositories.products import ProductRepository
 from app.pipelines.search.cascade.pipeline import CascadeSearchPipeline
 from app.schemas.search.cascade import CascadePredictResponse, CascadeSearchResponse
+from app.schemas.search.v1 import PredictResponse
 from app.services.images import ImageService, InvalidImage
 
 router = APIRouter(prefix="/cascade", tags=["search-cascade"])
@@ -77,3 +78,22 @@ async def predict_cascade(
     source = await _decode_upload(image, images, settings)
     effective_threshold = threshold if threshold is not None else settings.cascade_predict_threshold
     return await pipeline.predict_top1(source, ProductRepository(session), is_already_crop=False, threshold=effective_threshold)
+
+
+@router.post("/eval/predict", response_model=PredictResponse)
+async def eval_predict_cascade(
+    image: Annotated[UploadFile, File()],
+    session: AsyncSession = Depends(get_session),
+    images: ImageService = Depends(get_images),
+    pipeline: CascadeSearchPipeline = Depends(get_pipeline_cascade),
+    settings: Settings = Depends(get_settings),
+) -> PredictResponse:
+    """Compatibility endpoint for the customer's participant_test.sh benchmark.
+
+    Runs the full cascade and returns only the top-1 slug (no confidence threshold).
+    """
+    source = await _decode_upload(image, images, settings)
+    response = await pipeline.predict_top1(
+        source, ProductRepository(session), is_already_crop=False, threshold=None,
+    )
+    return PredictResponse(slug=response.slug)
