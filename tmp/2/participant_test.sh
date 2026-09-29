@@ -7,7 +7,7 @@ set -uo pipefail
 
 images_dir=""
 manifest=""
-endpoint="http://127.0.0.1:8080/v1/eval/predict"
+endpoint="http://127.0.0.1:8030/api/v1/eval/predict"
 output="predictions.jsonl"
 
 usage() {

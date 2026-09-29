@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -120,7 +121,13 @@ async def predict_eval(
     returns only the slug, with no confidence threshold applied.
     """
     source = await decode_upload(image, images, settings)
+    t0 = time.perf_counter()
     response = await pipeline.predict_top1(
         source, ProductRepository(session), is_already_crop=False, threshold=None,
     )
-    return PredictResponse(slug=response.slug)
+    latency_ms = (time.perf_counter() - t0) * 1000
+    return PredictResponse(
+        slug=response.slug,
+        confidence=response.confidence,
+        latency_ms=latency_ms,
+    )
