@@ -35,6 +35,7 @@ class CascadeSearchPipeline:
     decision_engine: CascadeDecisionEngine
     images: ImageService
     predict_threshold: float | None = None
+    reject_below_similarity: float | None = None
     target_size: int = 518
 
     async def run(
@@ -155,6 +156,18 @@ class CascadeSearchPipeline:
                 final_results = []
                 stage_reached = "rejected_low_confidence"
                 decision.reason += f" (confidence {winner_confidence:.4f} < threshold {effective_threshold:.4f})"
+
+        # Absolute floor: reject any winner whose confidence is below the configured minimum
+        if self.reject_below_similarity is not None and winner is not None:
+            winner_confidence = (
+                getattr(winner, "final_score", None)
+                or getattr(winner, "dino_similarity", None)
+            )
+            if winner_confidence is not None and winner_confidence < self.reject_below_similarity:
+                winner = None
+                final_results = []
+                stage_reached = "rejected_low_similarity"
+                decision.reason += f" (confidence {winner_confidence:.4f} < reject_below {self.reject_below_similarity:.4f})"
 
         return CascadeSearchResponse(
             stage_reached=stage_reached,

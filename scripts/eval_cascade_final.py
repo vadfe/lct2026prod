@@ -193,8 +193,8 @@ async def evaluate_cascade(
     )
 
     decision_engine = CascadeDecisionEngine(
-        confidence_margin=settings.cascade_confidence_margin,
-        min_confidence_score=settings.cascade_min_confidence_score,
+        confidence_margin=settings.cascade_found_min_margin,
+        min_confidence_score=settings.cascade_found_min_similarity,
         max_neighbors=settings.cascade_max_neighbors,
         neighbor_window=settings.cascade_neighbor_score_window,
     )
@@ -206,6 +206,7 @@ async def evaluate_cascade(
         decision_engine=decision_engine,
         images=images_service,
         predict_threshold=None,
+        reject_below_similarity=settings.cascade_reject_below_similarity,
         target_size=settings.canonical_size_v4,
     )
 

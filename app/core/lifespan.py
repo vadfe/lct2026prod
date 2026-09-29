@@ -182,8 +182,8 @@ async def lifespan(app: FastAPI):
                 from app.pipelines.search.cascade.pipeline import CascadeSearchPipeline
 
                 decision_engine = CascadeDecisionEngine(
-                    confidence_margin=settings.cascade_confidence_margin,
-                    min_confidence_score=settings.cascade_min_confidence_score,
+                    confidence_margin=settings.cascade_found_min_margin,
+                    min_confidence_score=settings.cascade_found_min_similarity,
                     neighbor_window=settings.cascade_neighbor_score_window,
                     max_neighbors=settings.cascade_max_neighbors,
                 )
@@ -194,6 +194,7 @@ async def lifespan(app: FastAPI):
                     decision_engine=decision_engine,
                     images=images,
                     predict_threshold=settings.cascade_predict_threshold,
+                    reject_below_similarity=settings.cascade_reject_below_similarity,
                     target_size=settings.canonical_size_v4,
                 )
                 app.state.pipeline_cascade = pipeline_cascade
