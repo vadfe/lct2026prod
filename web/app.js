@@ -137,6 +137,7 @@ function renderResult(data, id, originalUrl) {
     $('wine-block').classList.toggle('hidden', !winner);
     $('about-answer').classList.add('hidden');
     $('pairing-answer').textContent = '';
+    $('pairing-answer').classList.remove('pairing-graphic');
     document.querySelectorAll('.btn-pairing').forEach(btn => btn.classList.remove('selected'));
     if (winner) renderWine(winner, data.status, id);
 
@@ -195,6 +196,7 @@ async function renderWine(winner, status, id) {
     $('wine-title').textContent = winner.title;
     $('wine-winery').textContent = winner.manufacturer || '';
     $('wine-description').textContent = winner.description || '';
+    $('wine-description').classList.remove('structured');
     $('wine-description').classList.toggle('hidden', !winner.description);
     ['wine-category', 'wine-color', 'wine-region'].forEach(key => setTag($(key), ''));
     $('wine-grape-row').classList.add('hidden');
@@ -227,6 +229,7 @@ async function renderWine(winner, status, id) {
             $('wine-grape').textContent = card.grape;
             $('wine-grape-row').classList.remove('hidden');
         }
+        if (info.value.profile) renderProfile($('wine-description'), info.value.profile);
     }
 
     const items = alts.status === 'fulfilled' ? alts.value.items : [];
@@ -235,9 +238,79 @@ async function renderWine(winner, status, id) {
         : [el('div', 'item-meta', 'Похожих вин в каталоге сомелье не нашёл.')]));
 }
 
+// Структурированное описание вина: блоки «Цвет / Аромат / Вкус / Гастрономия», шкалы вкуса, чипы ароматов и блюд.
+// Тексты блоков — фразы карточки из базы без изменений (сервер только раскладывает их по смыслу).
+const WINE_TONE = { 'Красное': 'red', 'Белое': 'white', 'Розовое': 'rose', 'Оранжевое': 'orange' };
+
+function chips(items, className) {
+    const box = el('div', 'wd-chips');
+    items.forEach(text => box.append(el('span', `wd-chip ${className}`, text)));
+    return box;
+}
+
+function renderProfile(node, profile) {
+    const sections = profile.sections || [];
+    const scales = (profile.scales || []).filter(s => s.value !== null && s.value !== undefined);
+    if (!sections.length && !scales.length) return;  // нечего структурировать — остаётся исходный текст
+    const tone = WINE_TONE[profile.category] || 'neutral';
+    const parts = [];
+
+    if (scales.length) {
+        const box = el('div', `wd-scales tone-${tone}`);
+        scales.forEach(s => {
+            const row = el('div', `wd-scale scale-${s.key}`);
+            const head = el('div', 'wd-scale-head');
+            head.append(el('span', 'wd-scale-label', s.label), el('span', 'wd-scale-word', s.word || ''));
+            const track = el('div', 'wd-track');
+            const dot = el('span', 'wd-dot');
+            dot.style.left = `${Math.round(s.value * 100)}%`;
+            track.append(dot);
+            const ends = el('div', 'wd-scale-ends');
+            ends.append(el('span', '', s.left), el('span', '', s.right));
+            row.append(head, track, ends);
+            box.append(row);
+        });
+        parts.push(box);
+    }
+
+    sections.forEach(section => {
+        const block = el('div', `wd-block wd-${section.key}${section.key === 'color' ? ` tone-${tone}` : ''}`);
+        block.append(el('div', 'wd-title', section.title), el('p', 'wd-text', section.text));
+        if (section.key === 'aroma' && profile.aromas && profile.aromas.length) block.append(chips(profile.aromas, 'aroma'));
+        if (section.key === 'food' && profile.foods && profile.foods.length) block.append(chips(profile.foods, 'food'));
+        parts.push(block);
+    });
+    // ароматы/блюда, распознанные в карточке, но без своего блока в тексте
+    if (profile.aromas && profile.aromas.length && !sections.some(s => s.key === 'aroma')) {
+        const block = el('div', 'wd-block wd-aroma');
+        block.append(el('div', 'wd-title', 'Ароматы'), chips(profile.aromas, 'aroma'));
+        parts.push(block);
+    }
+    if (profile.foods && profile.foods.length && !sections.some(s => s.key === 'food')) {
+        const block = el('div', 'wd-block wd-food');
+        block.append(el('div', 'wd-title', 'С чем сочетается по карточке'), chips(profile.foods, 'food'));
+        parts.push(block);
+    }
+
+    if (profile.facts && profile.facts.length) {
+        const facts = el('div', 'wd-facts');
+        profile.facts.forEach(f => {
+            const item = el('div', 'wd-fact');
+            item.append(el('span', 'wd-fact-label', f.label), el('span', 'wd-fact-value', f.value));
+            facts.append(item);
+        });
+        parts.push(facts);
+    }
+
+    node.replaceChildren(...parts);
+    node.classList.add('structured');
+    node.classList.remove('hidden');
+}
+
 // ---------- Сомелье ----------
 async function pairWith(dish) {
     const answer = $('pairing-answer');
+    answer.classList.remove('pairing-graphic');
     if (!current || !current.slug) {
         answer.textContent = 'Для этого вина нет карточки сомелье.';
         return;
@@ -251,11 +324,123 @@ async function pairWith(dish) {
             answer.textContent = result.text;
             return;
         }
+        if (result.pairing) {
+            renderPairing(answer, result.pairing);
+            return;
+        }
         const start = result.text.indexOf('К этому блюду');  // справка о вине доступна по кнопке «О вине»
         answer.textContent = start >= 0 ? result.text.slice(start) : result.text;
     } catch (error) {
         answer.textContent = `Сомелье недоступен: ${error.message}`;
     }
+}
+
+// Инфографика сочетания «вино + блюдо»: кольцо с баллом и вердиктом, место среди вин каталога,
+// доводы «работает / мешает» с силой вклада правила, блюда, к которым вино подходит лучше.
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function scoreRing(score, level) {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 80 80');
+    svg.setAttribute('class', `pr-ring level-${level}`);
+    const circle = (cls, extra) => {
+        const c = document.createElementNS(SVG_NS, 'circle');
+        Object.entries({ cx: 40, cy: 40, r: 34, class: cls, ...extra }).forEach(([k, v]) => c.setAttribute(k, v));
+        return c;
+    };
+    const length = 2 * Math.PI * 34;
+    svg.append(circle('pr-ring-bg'), circle('pr-ring-fg', {
+        'stroke-dasharray': `${(length * Math.max(0, Math.min(100, score)) / 100).toFixed(1)} ${length.toFixed(1)}`,
+        transform: 'rotate(-90 40 40)',
+    }));
+    const text = document.createElementNS(SVG_NS, 'text');
+    Object.entries({ x: 40, y: 46, 'text-anchor': 'middle', class: 'pr-ring-text' }).forEach(([k, v]) => text.setAttribute(k, v));
+    text.textContent = Math.round(score);
+    svg.append(text);
+    return svg;
+}
+
+function factorRow(f) {
+    const row = el('div', `pr-factor ${f.sign}`);
+    const head = el('div', 'pr-factor-head');
+    head.append(el('span', 'pr-factor-icon', f.sign === 'plus' ? '+' : '−'), el('span', 'pr-factor-title', f.title));
+    // сила довода: вклад правила (−1…+1) с учётом его веса; самый весомый — «Сладость», 3,5
+    const meter = el('span', 'pr-meter');
+    const fill = el('span', 'pr-meter-fill');
+    fill.style.width = `${Math.round(Math.min(1, Math.abs(f.value) * f.weight / 3.5) * 100)}%`;
+    meter.append(fill);
+    head.append(meter);
+    row.append(head, el('div', 'pr-factor-text', f.text));
+    if (f.quote) row.append(el('div', 'pr-quote', `«${f.quote}»`));
+    return row;
+}
+
+function renderPairing(node, p) {
+    const parts = [];
+
+    const hero = el('div', `pr-hero level-${p.verdict.level}`);
+    const summary = el('div', 'pr-summary');
+    summary.append(el('span', 'pr-verdict', p.verdict.title), el('div', 'pr-dish', p.dish.text));
+    if (p.dish.traits && p.dish.traits.length) summary.append(chips(p.dish.traits, 'trait'));
+    hero.append(scoreRing(p.score, p.verdict.level), summary);
+    parts.push(hero);
+
+    // место среди всех вин каталога к этому блюду
+    const rank = el('div', 'pr-rank');
+    rank.append(el('div', 'pr-rank-label', `Лучше, чем ${Math.round(p.beats * 100)} % вин каталога к этому блюду`));
+    const track = el('div', 'pr-rank-track');
+    const marker = el('span', 'pr-rank-marker');
+    marker.style.left = `${Math.round(p.beats * 100)}%`;
+    track.append(marker);
+    const ends = el('div', 'wd-scale-ends');
+    ends.append(el('span', '', 'хуже'), el('span', '', `лучшее в каталоге — ${Math.round(p.best)}`));
+    rank.append(track, ends);
+    parts.push(rank);
+
+    const groups = [['plus', 'Что работает'], ['minus', 'Что мешает']];
+    if (p.verdict.level === 'poor') groups.reverse();  // при плохой паре сначала причина
+    groups.forEach(([sign, title]) => {
+        const items = p.factors.filter(f => f.sign === sign);
+        if (!items.length) return;
+        const box = el('div', `pr-group pr-${sign}`);
+        box.append(el('div', 'pr-group-title', title), ...items.map(factorRow));
+        parts.push(box);
+    });
+
+    if (p.unknown && p.unknown.length) {
+        const box = el('div', 'pr-unknown');
+        box.append(el('span', 'pr-unknown-label', 'В базе не указано:'), chips(p.unknown, 'unknown'));
+        parts.push(box);
+    }
+
+    if (p.better_dishes && p.better_dishes.length) {
+        const box = el('div', 'pr-better');
+        box.append(el('div', 'pr-group-title', 'С чем это вино раскроется лучше'));
+        const list = el('div', 'pr-better-list');
+        p.better_dishes.forEach(d => {
+            const btn = el('button', 'pr-dish-btn');
+            btn.type = 'button';
+            btn.append(el('span', '', d.label), el('b', '', String(Math.round(d.score))));
+            btn.title = 'Оценить это сочетание';
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.btn-pairing').forEach(other => other.classList.remove('selected'));
+                $('dish-input').value = d.query;
+                pairWith(d.query);
+            });
+            list.append(btn);
+        });
+        box.append(list);
+        if (p.card_foods && p.card_foods.length) {
+            const card = el('div', 'pr-card-foods');
+            card.append(el('span', 'pr-unknown-label', 'Карточка вина советует:'), chips(p.card_foods, 'food'));
+            box.append(card);
+        }
+        parts.push(box);
+    }
+
+    if (p.note) parts.push(el('div', 'pr-note', p.note));
+    node.replaceChildren(...parts);
+    node.classList.add('pairing-graphic');
 }
 
 document.querySelectorAll('.btn-pairing').forEach(btn => btn.addEventListener('click', () => {
@@ -272,9 +457,96 @@ $('dish-form').addEventListener('submit', event => {
 
 $('btn-about').addEventListener('click', () => {
     const box = $('about-answer');
-    box.textContent = current && current.info ? current.info.text : 'В карточках сомелье этого вина нет.';
     box.classList.toggle('hidden');
+    if (box.classList.contains('hidden')) return;
+    box.classList.remove('pairing-graphic');
+    if (!current || !current.info) box.textContent = 'В карточках сомелье этого вина нет.';
+    else if (current.info.profile) renderAbout(box, current.info);
+    else box.textContent = current.info.text;
 });
+
+// «О вине»: паспорт вина одним взглядом. Описание, шкалы и факты подачи уже показаны в карточке выше (renderProfile),
+// здесь — сводка плитками, вкус и ароматы плашками, с чем подать (по нажатию — оценка сочетания), чего нет в базе.
+function renderAbout(node, info) {
+    const card = info.card || {};
+    const profile = info.profile || {};
+    const scales = profile.scales || [];
+    const sweet = scales.find(s => s.key === 'sweetness');
+    const parts = [];
+
+    const hero = el('div', `ab-hero tone-${WINE_TONE[profile.category] || 'neutral'}`);
+    hero.append(el('div', 'pr-group-title', 'Паспорт вина'), el('div', 'pr-dish', card.name || ''));
+    if (card.winery) hero.append(el('div', 'rc-winery', card.winery));
+    parts.push(hero);
+
+    const type = [card.category && card.category.toLowerCase(), profile.sparkling ? 'игристое' : '', sweet && sweet.word].filter(Boolean).join(', ');
+    const tiles = [['Тип', type], ['Сорт', card.grape], ['Регион', card.region],
+        ...(profile.facts || []).map(f => [f.label, f.value])].filter(([, value]) => value);
+    if (tiles.length) {
+        const grid = el('div', 'ab-tiles');
+        tiles.forEach(([label, value]) => {
+            const tile = el('div', 'wd-fact');
+            tile.append(el('span', 'wd-fact-label', label), el('span', 'wd-fact-value', value));
+            grid.append(tile);
+        });
+        parts.push(grid);
+    }
+
+    const taste = scales.filter(s => s.key !== 'sweetness' && s.word && s.value !== null);
+    if (taste.length || (profile.aromas || []).length) {
+        const box = el('div', 'pr-group ab-taste');
+        box.append(el('div', 'pr-group-title', 'Вкус и аромат'));
+        if (taste.length) box.append(chips(taste.map(s => `${s.label}: ${s.word}`), 'trait'));
+        if ((profile.aromas || []).length) box.append(chips(profile.aromas, 'aroma'));
+        parts.push(box);
+    }
+
+    if ((info.best_dishes || []).length || (profile.foods || []).length) {
+        const box = el('div', 'pr-better');
+        box.append(el('div', 'pr-group-title', 'С чем подать'));
+        if ((profile.foods || []).length) {
+            const foods = el('div', 'pr-card-foods ab-foods');
+            foods.append(el('span', 'pr-unknown-label', 'Советует карточка вина:'), chips(profile.foods, 'food'));
+            box.append(foods);
+        }
+        if ((info.best_dishes || []).length) {
+            box.append(el('div', 'pr-unknown-label ab-hint', 'Лучше всего по правилам сомелье — нажмите, чтобы оценить сочетание:'));
+            const list = el('div', 'pr-better-list');
+            info.best_dishes.forEach(d => {
+                const btn = el('button', 'pr-dish-btn');
+                btn.type = 'button';
+                btn.append(el('span', '', d.label), el('b', '', String(Math.round(d.score))));
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.btn-pairing').forEach(other => other.classList.remove('selected'));
+                    $('dish-input').value = d.query;
+                    pairWith(d.query);
+                    $('pairing-answer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                list.append(btn);
+            });
+            box.append(list);
+        }
+        parts.push(box);
+    }
+
+    const missing = scales.filter(s => s.value === null || s.value === undefined).map(s => s.label.toLowerCase());
+    if (missing.length) {
+        const box = el('div', 'pr-unknown');
+        box.append(el('span', 'pr-unknown-label', 'В базе не указано:'), chips(missing, 'unknown'));
+        parts.push(box);
+    }
+    if (card.url && /^https?:\/\//.test(card.url)) {
+        const link = el('a', 'rc-link', 'Карточка вина на сайте →');
+        link.href = card.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        parts.push(link);
+    }
+    if (info.note) parts.push(el('div', 'pr-note', info.note));
+
+    node.replaceChildren(...parts);
+    node.classList.add('pairing-graphic');
+}
 
 $('btn-chat').addEventListener('click', () => {
     $('chat-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -286,6 +558,7 @@ $('chat-form').addEventListener('submit', async event => {
     const message = $('chat-input').value.trim();
     if (!message) return;
     const answer = $('chat-answer');
+    answer.classList.remove('pairing-graphic');
     answer.textContent = 'Сомелье думает…';
     try {
         const data = await getJson(api('/api/sommelier/ask'), {
@@ -294,11 +567,109 @@ $('chat-form').addEventListener('submit', async event => {
             body: JSON.stringify(sommelierSession ? { message, session_id: sommelierSession } : { message }),
         });
         sommelierSession = data.session_id;
-        answer.textContent = data.text;
+        if (data.kind === 'recommendation' && data.picks && data.picks.length) {
+            renderRecommendation(answer, data);
+        } else {
+            answer.classList.remove('pairing-graphic');
+            answer.textContent = data.text;
+        }
     } catch (error) {
+        answer.classList.remove('pairing-graphic');
         answer.textContent = `Ошибка: ${error.message}`;
     }
 });
+
+// Подбор вин в чате: карточки с фото бутылки, ролью варианта, совпадением и доводами; уместность типов — плашками.
+// Полный текст ответа (с LLM — живой пересказ) остаётся под «Пояснением сомелье».
+const ROLE_TONE = { 'Лучшее совпадение по правилам': 'best', 'Классический вариант': 'classic', 'Нестандартный выбор': 'rare' };
+const TYPE_VERDICTS = [['подходит', 'fit', 'Подходит'], ['допустимо, с оговорками', 'maybe', 'С оговорками'], ['лучше избегать', 'avoid', 'Лучше избегать']];
+
+function pickCard(pick, index) {
+    const card = el('article', `rc-card role-${ROLE_TONE[pick.role] || 'other'}`);
+    const tone = WINE_TONE[pick.category] || 'neutral';
+
+    const media = el('div', `rc-media tone-${tone}`);
+    const image = document.createElement('img');
+    image.alt = pick.name;
+    image.loading = 'lazy';
+    image.src = pick.image_url ? api(pick.image_url) : 'img/glass_filled_straight.png';
+    if (!pick.image_url) media.classList.add('placeholder');
+    image.onerror = () => { media.classList.add('placeholder'); image.onerror = null; image.src = 'img/glass_filled_straight.png'; };
+    media.append(image, el('span', 'rc-num', String(index + 1)));
+
+    const body = el('div', 'rc-body');
+    body.append(el('span', 'rc-role', pick.role), el('div', 'rc-name', pick.name));
+    if (pick.winery) body.append(el('div', 'rc-winery', pick.winery));
+    const type = [pick.category && pick.category.toLowerCase(), pick.sparkling ? 'игристое' : '', pick.sweetness].filter(Boolean).join(', ');
+    body.append(chips([type, pick.grape, pick.region].filter(Boolean), 'trait'));
+
+    const match = el('div', 'rc-match');
+    const meter = el('span', 'pr-meter');
+    const fill = el('span', 'pr-meter-fill');
+    fill.style.width = `${Math.max(0, Math.min(100, Math.round(pick.score)))}%`;
+    meter.append(fill);
+    match.append(el('span', 'rc-match-label', 'Совпадение'), meter, el('b', '', String(Math.round(pick.score))));
+    body.append(match);
+
+    const top = el('div', 'rc-top');
+    top.append(media, body);
+    card.append(top);
+
+    const reasons = el('div', 'rc-reasons');
+    (pick.pros || []).forEach(text => reasons.append(el('div', 'rc-reason plus', text)));
+    (pick.cons || []).forEach(text => reasons.append(el('div', 'rc-reason minus', text)));
+    if (reasons.children.length) card.append(reasons);
+    if (pick.unknown && pick.unknown.length) {
+        const box = el('div', 'pr-unknown');
+        box.append(el('span', 'pr-unknown-label', 'В базе не указано:'), chips(pick.unknown, 'unknown'));
+        card.append(box);
+    }
+    if (pick.quote) card.append(el('div', 'pr-quote rc-quote', `«${pick.quote}»`));
+    if (pick.url && /^https?:\/\//.test(pick.url)) {
+        const link = el('a', 'rc-link', 'Карточка вина на сайте →');
+        link.href = pick.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        card.append(link);
+    }
+    return card;
+}
+
+function renderRecommendation(node, data) {
+    const parts = [];
+    const head = el('div', 'rc-head');
+    const dish = data.context && data.context.dish_text;
+    head.append(el('div', 'pr-group-title', dish ? 'Подбор к блюду' : 'Подбор вина'));
+    if (dish) head.append(el('div', 'pr-dish', dish));
+    if (data.dish_traits && data.dish_traits.length) head.append(chips(data.dish_traits, 'trait'));
+    if (data.total) head.append(el('div', 'rc-pool', data.pool === data.total
+        ? `Выбирал из всех ${data.total} вин каталога. Три варианта разных стилей:`
+        : `Из ${data.total} вин каталога под ваши условия подходят ${data.pool}. Три варианта разных стилей:`));
+    parts.push(head, ...data.picks.map(pickCard));
+
+    if (data.types && data.types.length) {
+        const box = el('div', 'pr-group rc-types');
+        box.append(el('div', 'pr-group-title', 'Какие типы вина уместны'));
+        TYPE_VERDICTS.forEach(([verdict, cls, title]) => {
+            const rows = data.types.slice(0, 8).filter(t => t.verdict === verdict);
+            if (!rows.length) return;
+            const line = el('div', `rc-type-row ${cls}`);
+            line.append(el('span', 'rc-type-verdict', title),
+                chips(rows.map(t => [t.cat.toLowerCase(), t.sparkling ? 'игристое' : '', t.sweet].filter(Boolean).join(' ')), `type-${cls}`));
+            box.append(line);
+        });
+        parts.push(box);
+    }
+
+    const details = document.createElement('details');
+    details.className = 'rc-details';
+    details.append(el('summary', '', 'Пояснение сомелье текстом'), el('div', 'somm-text', data.note ? data.text.replace(data.note, '').trim() : data.text));
+    parts.push(details);
+    if (data.note) parts.push(el('div', 'pr-note', data.note));
+
+    node.replaceChildren(...parts);
+    node.classList.add('pairing-graphic');
+}
 
 // ---------- Оценка бокалами (хранится на устройстве) ----------
 function initRating(key) {

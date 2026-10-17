@@ -1,7 +1,10 @@
 """Слой 5: объяснение на уровне гостя. Каждая фраза выводится из вкладов правил и цитат из описания вина."""
+import re
+
+from . import guardrails
 from .dishes import describe_axes
 from .engine import acid_words, body_words, tannin_words
-from .features import SWEET_LABEL
+from .features import SWEET_LABEL, norm
 
 CAT_ADJ = {"Красное": "красное", "Белое": "белое", "Розовое": "розовое", "Оранжевое": "оранжевое"}
 
@@ -103,6 +106,78 @@ def wine_facts(w, level):
     return line + ("; " + "; ".join(extra) if extra else "")
 
 
+# ---- оценка «вино + блюдо» для инфографики сканера ------------------------------------------------------
+RULE_TITLES = dict(weight="Вес и насыщенность", fat_acid="Кислотность и жир", sweet="Сладость", tannin="Танины",
+                   region="Регион", aroma="Ароматы", occasion="Повод", prefs="Ваши пожелания")
+# Вердикт — по месту вина среди всего каталога к этому блюду: абсолютный балл у разных блюд несопоставим
+# (к стейку лучшее вино набирает 84, к утке с соусом — 76).
+VERDICTS = ((0.9, "great", "Отличная пара"), (0.7, "good", "Хорошая пара"), (0.4, "ok", "Допустимо"),
+            (0.0, "poor", "Не лучший выбор"))
+_QUOTE = re.compile(r"\s*(?:;\s*в описании:\s*|\((?:в описании:\s*)?)«([^»]+)»\)?$")
+
+
+def _split_quote(line):
+    """«довод (в описании: «цитата»)» -> (довод, цитата); цитата из карточки показывается отдельно."""
+    m = _QUOTE.search(line)
+    return (line[:m.start()].rstrip(" ;"), m.group(1)) if m else (line, None)
+
+
+def _trait(t):
+    """«интенсивность насыщенное» -> «насыщенное»; «среднее» без оси непонятно — «средней насыщенности»."""
+    t = t.removeprefix("интенсивность ")
+    return "средней насыщенности" if t == "среднее" else t
+
+
+def pairing_profile(w, ctx, score, comps, unknown, rank, better):
+    """Структура для инфографики сочетания: вердикт, вклад правил «за/против», профиль блюда, лучшие блюда к вину.
+
+    Всё выводится из тех же вкладов правил, что и текстовый ответ; новых фактов о вине нет.
+    """
+    level, title = next((lv, t) for lim, lv, t in VERDICTS if rank["beats"] >= lim)
+    if any(c["rule"] == "sweet" and c["value"] <= -0.6 for c in comps):   # вино заметно суше блюда — главный конфликт
+        level, title = VERDICTS[-1][1:]
+    dish = ctx.dish
+    factors = []
+    for c in sorted(comps, key=lambda c: -abs(c["value"] * c["weight"])):
+        text, quote = _split_quote(reason_line(c, w, ctx, "novice"))
+        sign = "plus" if c["value"] > 0.15 else "minus" if c["value"] < -0.15 else "neutral"
+        rule_title = "Карточка называет это блюдо" if c["rule"] == "aroma" and c.get("foods") else RULE_TITLES.get(c["rule"], c["rule"])
+        factors.append(dict(rule=c["rule"], title=rule_title, sign=sign,
+                            value=round(c["value"], 2), weight=c["weight"], text=text[:1].upper() + text[1:], quote=quote))
+    return dict(
+        dish=dict(text=ctx.dish_text or ", ".join(sorted({m.split(" («")[0] for m in dish["matched_main"]})),
+                  traits=[_trait(t) for t in describe_axes(dish).split(", ")]),
+        score=score, beats=rank["beats"], best=rank["best"],
+        verdict=dict(level=level, title=title),
+        factors=factors,
+        unknown=list(unknown),
+        better_dishes=better,
+        card_foods=list(w["features"]["food_in_desc"]),
+        note=guardrails.NEUTRAL_FOOTER,
+    )
+
+
+def pick_card(r, ctx, level):
+    """Поля карточки вина в выдаче чата: тип, сорт, регион, доводы без цитат, короткая цитата описания.
+
+    Те же доводы, что в текстовом ответе (explain_pick); цитата из описания идёт отдельно, одной на вино.
+    """
+    w, f = r["wine"], r["wine"]["features"]
+    pros, cons = explain_pick(r, ctx, level)
+    clean = lambda lines: [(t[:1].upper() + t[1:]) for t, _ in map(_split_quote, lines)]
+    return dict(
+        winery=w["winery"] or "", category=w["category"] or "", grape=w["grape"] or "", region=w["region"] or "",
+        sweetness=SWEET_LABEL.get(f["sweetness"]), sparkling=bool(f["sparkling"]), url=w["url"],
+        pros=clean(pros), cons=clean(cons),
+        quote=snippet(w["description"], 180) if (w.get("description") or "").strip() else None,
+    )
+
+
+def dish_traits(dish):
+    """Признаки блюда для чипов: «насыщенное», «жирное», «сладкое»…"""
+    return [_trait(t) for t in describe_axes(dish).split(", ")] if dish else []
+
+
 def render_recommendation(rec, ctx, type_rows, level):
     """Готовый текст ответа (без LLM). LLM-слой может переписать его, но опирается на те же факты."""
     L = []
@@ -196,3 +271,77 @@ def render_profile(p):
     if p["n"] < 10:
         L.append("  Внимание: вин мало — выводы ориентировочные.")
     return "\n".join(L)
+
+
+# ---- структурированная карточка вина (для интерфейса сканера) ----------------------------------------
+# Разбор описания из базы на смысловые блоки — только перегруппировка фраз карточки, без добавления фактов.
+DESC_SECTIONS = (
+    ("color", "Цвет", r"\bцвет\w*|\bокрас\w*"),
+    ("aroma", "Аромат", r"аромат\w*|\bбукет\w*|\bв носу\b"),
+    ("taste", "Вкус", r"вкус\w*|послевкус\w*|танин\w*|текстур\w*|\bфиниш\w*|\bфинал\w*|\bво рту\b"),
+    ("food", "Гастрономия", r"гастроном\w*|сочета\w*|аперитив\w*|подава\w*|\bподойд\w*|\bподходит к\b|\bк (?:мяс|рыб|сыр|птиц|блюд|дич|морепр|десерт|паст|закуск|салат|фрукт|шашлык|стейк)\w*"),
+    ("tech", "Технология", r"винификац\w*|фермент\w*|мацерац\w*|\bвыдерж\w*|\bбочк\w*|купаж\w*|\bурожа\w*|\bсбор\w*|брожен\w*|\bсусл\w*|\bлоз\w*|виноградник\w*|\bразлит\w*"),
+)
+DESC_TECH = re.compile(r"^\s*(технолог\w*|техника винификации|особенности технологии|технологические операции|технология производства)\s*:")
+DESC_OTHER = re.compile(r"^\s*(награды|сортовой состав|сорта винограда|тираж|декантац\w*)\s*:")
+DESC_LABEL = re.compile(r"^\s*(вкус и аромат|вкус|аромат|цвет|сочетания|гастрономия|финиш|послевкусие)\s*:\s*", re.I)
+SCALE_WORDS = {
+    "sweetness": ("Сладость", "сухое", "сладкое"),
+    "body": ("Тело", "лёгкое", "плотное"),
+    "tannin": ("Танины", "мягкие", "выраженные"),
+    "acidity": ("Кислотность", "низкая", "высокая"),
+}
+
+
+def split_description(desc):
+    """Описание из базы -> [{key, title, text}] в порядке цвет/аромат/вкус/гастрономия/о вине. Фразы не меняются."""
+    # «аромат …; вкус …» — разные блоки, поэтому режем и по «;»
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?…;])\s+|\n+", desc or "") if s.strip()]
+    buckets, last = {}, "other"
+    for s in sentences:
+        low = norm(s)
+        hits = [(m.start(), key) for key, _, rx in DESC_SECTIONS for m in [re.search(rx, low)] if m]
+        key = "tech" if DESC_TECH.match(low) else "other" if DESC_OTHER.match(low) else min(hits)[1] if hits else last
+        s = DESC_TECH.sub("", s)
+        s = DESC_LABEL.sub("", s).strip().rstrip(";,").strip()
+        if s:
+            s = s[:1].upper() + s[1:]
+            buckets.setdefault(key, []).append(s if s[-1] in ".!?…»\"" else s + ".")
+        last = key
+    titles = {key: title for key, title, _ in DESC_SECTIONS} | {"other": "О вине"}
+    out = []
+    for key in [k for k, _, _ in DESC_SECTIONS] + ["other"]:
+        if buckets.get(key):
+            text = " ".join(buckets[key])
+            out.append(dict(key=key, title=titles[key], text=text))
+    return out
+
+
+def wine_profile(w):
+    """Структура для карточки: блоки описания, шкалы 0..1, ароматы, блюда из карточки, факты подачи."""
+    f = w["features"]
+    scales = []
+    for key, (label, left, right) in SCALE_WORDS.items():
+        v = f.get(key)
+        if key == "sweetness":
+            pos = None if v is None else v / 3
+            word = SWEET_LABEL.get(v) if v is not None else None
+        else:
+            pos = None if v is None else max(0.0, min(1.0, (v - 1) / 2))
+            word = {"body": body_words, "tannin": tannin_words, "acidity": acid_words}[key](v)
+        scales.append(dict(key=key, label=label, left=left, right=right, value=None if pos is None else round(pos, 2), word=word))
+    sections = split_description(w.get("description"))
+    # цвет из поля карточки — отдельным блоком с образцом, если в описании о цвете ничего нет
+    if w.get("color") and len(w["color"]) <= 60 and not any(s["key"] == "color" for s in sections):
+        sections.insert(0, dict(key="color", title="Цвет", text=w["color"]))
+    facts = []
+    if f.get("serve_temp"):
+        facts.append(dict(label="Подача", value=f"{f['serve_temp'][0]}–{f['serve_temp'][1]} °C"))
+    if f.get("alcohol"):
+        facts.append(dict(label="Алкоголь", value=f"{f['alcohol']}%"))
+    if f.get("aging_months"):
+        facts.append(dict(label="Выдержка", value=f"{f['aging_months']} мес."))
+    if f.get("oak"):
+        facts.append(dict(label="Дуб", value="есть в описании"))
+    return dict(category=w.get("category") or "", sparkling=bool(f.get("sparkling")), sections=sections,
+                scales=scales, aromas=list(f.get("aroma") or []), foods=list(f.get("food_in_desc") or []), facts=facts)

@@ -9,7 +9,7 @@ import time
 from . import catalog, guardrails
 from .context import Parser
 from .engine import Context, Engine
-from .explain import render_profile, render_profile_comparison, render_recommendation
+from .explain import dish_traits, pick_card, render_profile, render_profile_comparison, render_recommendation
 from .features import norm
 
 logger = logging.getLogger(__name__)
@@ -17,15 +17,21 @@ logger = logging.getLogger(__name__)
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_FEEDBACK_LOG = os.path.join(HERE, "data", "feedback.jsonl")
 
-COMPARE_RX = r"(чем отличается|разниц\w+ между|отличи\w+|сравни|в чем разница|в чём разница|или)\b"
+COMPARE_RX = r"(чем отличается|разниц\w+ между|отлича\w+|отличи\w+|сравни\w*|в чем разница|в чём разница|или)\b"
 DESCRIBE_RX = r"(расскажи|что такое|что за|опиши|какой вкус у|чем характеризуется|что известно про|что за сорт)"
+# Формы слов для типов вина в вопросе («красным», «белого», «сухих»): «бел»/«сух» — только с окончаниями прилагательного,
+# чтобы не ловить «белок», «сухофрукты». Текст уже прошёл norm (нижний регистр, ё -> е).
+_ADJ = r"(ое|ого|ому|ым|ом|ые|ых|ыми|ая|ой|ую|ие|им|ими|их)\b"
+ALIAS_RX = {"игристое": r"\bигрист", "красное": r"\bкрасн", "белое": r"\bбел" + _ADJ, "розовое": r"\bрозов",
+            "оранжевое": r"\bоранжев", "сладкое": r"\bсладк", "сухое": r"\bсух" + _ADJ}
 GRAPE_ALIASES = {"игристое": ("sparkling", True), "красное": ("cat", "Красное"), "белое": ("cat", "Белое"),
                  "розовое": ("cat", "Розовое"), "оранжевое": ("cat", "Оранжевое"), "сладкое": ("sweet", {2, 3}), "сухое": ("sweet", {0})}
 
 
 class Sommelier:
-    def __init__(self, wines=None, feedback_log=None):
+    def __init__(self, wines=None, feedback_log=None, llm=None):
         self.wines = wines or catalog.load()
+        self.llm = llm              # необязательный LLM-слой (llm.GeminiLLM): только переформулирует текст выдачи
         self.engine = Engine(self.wines)
         self.parser = Parser(self.wines)
         self.ctx = Context()
@@ -50,7 +56,8 @@ class Sommelier:
         if re.search(r"этикетк|распознан|на фото|по фото", t) and self._find_wine(text):
             return self.about_wine(text, self._dish_from(text))
         grapes = self.parser.grapes_in(t)
-        if re.search(COMPARE_RX, t) and (len(grapes) >= 2 or len(self._groups_in(t)) >= 2):
+        # «красное или белое к стейку?» — это подбор к блюду, а не сравнение типов
+        if re.search(COMPARE_RX, t) and (len(grapes) >= 2 or len(self._groups_in(t)) >= 2) and not self._dish_from(text):
             return self.compare(text)
         if re.search(DESCRIBE_RX, t) and (grapes or self._groups_in(t)) and not self._dish_from(text):
             return self.describe(text)
@@ -65,6 +72,11 @@ class Sommelier:
         new = self.parser.parse(text)
         if not (new.dish or new.occasion or new.colors or new.sparkling is not None or new.sweet_ok
                 or new.grapes_like or new.regions or new.avoid_oak or new.tannin_pref or new.body_pref):
+            # Движок не нашёл в сообщении ни блюда, ни повода, ни предпочтений — это вопрос, а не запрос подбора
+            if self.llm is not None:
+                reply = self.llm.answer(text, self._dialog_context())
+                if reply:
+                    return dict(kind="answer", text=reply + "\n\n" + guardrails.INFO_FOOTER)
             if self.ctx.dish is None:
                 return dict(kind="clarify", text="Уточните, пожалуйста: к какому блюду или по какому поводу подбираем "
                             "и есть ли пожелания (цвет, сухое/сладкое, что не любите)? Также могу объяснить разницу между сортами.")
@@ -77,11 +89,24 @@ class Sommelier:
         text_out = render_recommendation(rec, ctx, types, ctx.experience)
         tone = guardrails.check_tone(text_out)
         assert not tone, tone
-        text_out += "\n\n" + guardrails.NEUTRAL_FOOTER
-        return dict(kind="recommendation", text=text_out, context=_ctx_dict(ctx),
-                    picks=[dict(id=r["wine"]["id"], name=r["wine"]["name"], score=r["score"], role=r["role"],
-                                unknown=r["unknown"], reasons=[c for c in r["comps"]]) for r in rec["picks"]],
-                    types=types, pool=rec["pool_size"])
+        out = dict(kind="recommendation", text=text_out, context=_ctx_dict(ctx),
+                   picks=[dict(id=r["wine"]["id"], name=r["wine"]["name"], score=r["score"], role=r["role"],
+                               unknown=r["unknown"], reasons=[c for c in r["comps"]], **pick_card(r, ctx, ctx.experience))
+                          for r in rec["picks"]],
+                   types=types, pool=rec["pool_size"], total=rec["total"], dish_traits=dish_traits(ctx.dish),
+                   note=guardrails.NEUTRAL_FOOTER)
+        if self.llm is not None and out["picks"]:
+            out["text"] = self.llm.polish(out, self.engine.by_id, ctx.experience)
+        out["text"] += "\n\n" + guardrails.NEUTRAL_FOOTER
+        return out
+
+    def _dialog_context(self):
+        parts = []
+        if self.ctx.dish_text:
+            parts.append(f"гость подбирает вино к: {self.ctx.dish_text}")
+        if self.last and self.last["picks"]:
+            parts.append("последняя выдача каталога: " + "; ".join(r["wine"]["name"] for r in self.last["picks"]))
+        return ". ".join(parts)
 
     # ---- вино с этикетки: «что это и с чем сочетается» -----------------------------------------------
     def _find_wine(self, text, cutoff=0.6):
@@ -93,20 +118,27 @@ class Sommelier:
         m = difflib.get_close_matches(re.sub(r"[^\w\s]", "", t), list(names), n=1, cutoff=cutoff)
         return names[m[0]] if m else None
 
-    def about_wine(self, text_or_id, dish=None):
-        """Точка интеграции с распознаванием этикеток: получает slug/название, возвращает справку по вину."""
+    def about_wine(self, text_or_id, dish=None, dish_text=None):
+        """Точка интеграции с распознаванием этикеток: получает slug/название, возвращает справку по вину.
+
+        С блюдом добавляет `pairing` — оценку сочетания для инфографики (explain.pairing_profile)."""
         w = self.engine.by_id.get(text_or_id) or self._find_wine(text_or_id)
         if not w:
             return dict(kind="not_found", text="Такого вина в базе нет — ничего сказать о нём не могу.")
         f = w["features"]
         from .explain import snippet, wine_facts
-        L = [f"{w['name']}", wine_facts(w, "expert"), f"Описание из базы: «{snippet(w['description'], 700)}»"]
+        L = [f"{w['name']}", wine_facts(w, "expert")]
+        L.append(f"Описание из базы: «{snippet(w['description'], 700)}»" if (w.get("description") or "").strip() else "Описания в базе пока нет.")
         if f["food_in_desc"]:
             L.append("Блюда, которые упоминает сама карточка: " + ", ".join(f["food_in_desc"]))
+        pairing = None
         if dish:
-            ctx = Context(dish=dish)
+            ctx = Context(dish=dish, dish_text=dish_text)
             s, comps, unk = self.engine.score(w, ctx)
-            from .explain import reason_line
+            from .dishes import main_names
+            from .explain import pairing_profile, reason_line
+            pairing = pairing_profile(w, ctx, s, comps, unk, self.engine.dish_rank(s, ctx),
+                                      self.engine.best_dishes(w, 4, exclude=main_names(dish)))
             pros = [reason_line(c, w, ctx, "novice") for c in comps if c["value"] > 0.15]
             cons = [reason_line(c, w, ctx, "novice") for c in comps if c["value"] < -0.15]
             L.append(f"К этому блюду: оценка по правилам {s}/100.")
@@ -118,8 +150,10 @@ class Sommelier:
                 L.append(f"  в базе не указано: {', '.join(unk)}")
         L.append("\n" + guardrails.NEUTRAL_FOOTER)
         card = dict(name=w["name"], winery=w.get("winery") or "", category=w.get("category") or "",
-                    color=w.get("color") or "", region=w.get("region") or "", grape=w.get("grape") or "")
-        return dict(kind="wine_info", id=w["id"], text="\n".join(L), card=card)
+                    color=w.get("color") or "", region=w.get("region") or "", grape=w.get("grape") or "", url=w.get("url"))
+        from .explain import wine_profile
+        return dict(kind="wine_info", id=w["id"], text="\n".join(L), card=card, profile=wine_profile(w), pairing=pairing,
+                    best_dishes=self.engine.best_dishes(w, 4), note=guardrails.INFO_FOOTER)
 
     def alternatives(self, slug, k=5):
         """Точка интеграции с распознаванием: вина каталога, похожие по стилю на распознанное (slug)."""
@@ -139,8 +173,8 @@ class Sommelier:
         out = []
         for g in self.parser.grapes_in(t):
             out.append(("grape", g))
-        for word, _spec in GRAPE_ALIASES.items():
-            if re.search(word[:5], t) and not self.parser.grapes_in(t):
+        for word, rx in ALIAS_RX.items():
+            if re.search(rx, t) and not self.parser.grapes_in(t):
                 out.append(("alias", word))
         return out
 
@@ -165,7 +199,10 @@ class Sommelier:
         if len(groups) < 2:
             return dict(kind="clarify", text="Назовите два сорта или типа вина для сравнения, например «Мерло и Каберне Совиньон».")
         pa, pb = self._group(*groups[0]), self._group(*groups[1])
-        return dict(kind="comparison", text=render_profile_comparison(pa, pb) + "\n\n" + guardrails.INFO_FOOTER)
+        text_out = render_profile_comparison(pa, pb)
+        if self.llm is not None:
+            text_out = self.llm.retell(text_out, [pa, pb], self.ctx.experience)
+        return dict(kind="comparison", text=text_out + "\n\n" + guardrails.INFO_FOOTER)
 
     def describe(self, text):
         t = norm(text)
@@ -173,7 +210,11 @@ class Sommelier:
         if not groups:
             return dict(kind="clarify", text="О каком сорте или типе вина рассказать?")
         gs = sorted(groups, key=lambda g: -self.engine.grape_count.get(g[1], 0))[:1]
-        return dict(kind="profile", text=render_profile(self._group(*gs[0])) + "\n\n" + guardrails.INFO_FOOTER)
+        p = self._group(*gs[0])
+        text_out = render_profile(p)
+        if self.llm is not None:
+            text_out = self.llm.retell(text_out, [p], self.ctx.experience)
+        return dict(kind="profile", text=text_out + "\n\n" + guardrails.INFO_FOOTER)
 
     # ---- обратная связь ---------------------------------------------------------------------------
     def _feedback(self, t, raw):
