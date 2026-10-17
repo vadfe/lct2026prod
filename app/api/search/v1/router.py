@@ -9,14 +9,7 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.core.dependencies import (
-    get_detector,
-    get_images,
-    get_pipeline_cascade,
-    get_pipeline_v1,
-    get_segmenter,
-    get_session,
-)
+from app.core.dependencies import get_detector, get_images, get_pipeline_cascade, get_pipeline_v1, get_segmenter, get_session
 from app.db.repositories.products import ProductRepository
 from app.pipelines.search.cascade.pipeline import CascadeSearchPipeline
 from app.pipelines.search.v1.pipeline import SearchPipelineV1
@@ -114,20 +107,20 @@ async def predict_eval(
     pipeline: CascadeSearchPipeline = Depends(get_pipeline_cascade),
     settings: Settings = Depends(get_settings),
 ) -> PredictResponse:
-    """Predict top-1 wine slug for the customer's verification benchmark.
+    """Top-1 wine slug for the customer's benchmark script (participant_test.sh).
 
-    Previously this endpoint ran only v1 DINOv2. It now delegates to the full
-    cascade pipeline (v1 coarse + optional v4 SigLIP 2/OCR refinement) and
-    returns only the slug, with no confidence threshold applied.
+    Runs the cascade (DINOv2 candidates + SigLIP 2 fusion, the same answer as /api/cascade/predict):
+    ``slug`` is ``null`` when the wine is not in the catalog. Before, this endpoint ran v1 (DINOv2 only).
     """
     source = await decode_upload(image, images, settings)
-    t0 = time.perf_counter()
+    started = time.perf_counter()
     response = await pipeline.predict_top1(
-        source, ProductRepository(session), is_already_crop=False, threshold=None,
+        source, ProductRepository(session), is_already_crop=False, threshold=settings.cascade_predict_threshold
     )
-    latency_ms = (time.perf_counter() - t0) * 1000
     return PredictResponse(
         slug=response.slug,
+        status=response.status,
+        stage_reached=response.stage_reached,
         confidence=response.confidence,
-        latency_ms=latency_ms,
+        latency_ms=round((time.perf_counter() - started) * 1000, 2),
     )
