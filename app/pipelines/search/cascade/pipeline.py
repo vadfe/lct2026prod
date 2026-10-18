@@ -105,13 +105,19 @@ class CascadeSearchPipeline:
         ranked = self._rank(products, v1_per_view, v4_per_view)
         best = ranked[0] if ranked else None
         margin = round(best.fusion_score - ranked[1].fusion_score, 4) if len(ranked) > 1 else None
-        similarity = best.v4_similarity if best is not None else None
-        if best is None:
+
+        # Итоговая уверенность: берем собственное значение из первого каскада (DINOv2)
+        # для победителя, определенного вторым каскадом (SigLIP 2).
+        # Второй каскад лишь помогает разрешить сомнения между близкими соседями,
+        # но базовый уровень уверенности задается первым каскадом.
+        confidence = best.v1_similarity if best is not None else None
+
+        if best is None or confidence is None:
             status, reason = NOT_IN_CATALOG, "Каталог пуст: кандидатов нет"
         else:
-            status, reason = classify(similarity, margin, self.thresholds)
+            status, reason = classify(confidence, margin, self.thresholds)
+
         effective_threshold = threshold if threshold is not None else self.predict_threshold
-        confidence = similarity if similarity is not None else (best.v1_similarity if best is not None else None)
         if status != NOT_IN_CATALOG and effective_threshold is not None and confidence is not None and confidence < effective_threshold:
             status, reason = NOT_IN_CATALOG, f"Уверенность {confidence:.3f} ниже заданного порога {effective_threshold:.3f}"
 
@@ -136,7 +142,7 @@ class CascadeSearchPipeline:
             stage_reached="fusion" if v4_per_view is not None else "v1_only",
             winner=best if status != NOT_IN_CATALOG else None,
             final_results=ranked[:k],
-            decision=CascadeDecision(status=status, similarity=similarity, margin=margin, reason=reason),
+            decision=CascadeDecision(status=status, similarity=confidence, margin=margin, reason=reason),
             v1_results=v1_results,
             timings=CascadeTimings(
                 bbox_detect_ms=bbox_detect_ms,

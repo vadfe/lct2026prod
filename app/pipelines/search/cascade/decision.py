@@ -1,15 +1,12 @@
 """Answer zones of the cascade: found / probable / not_in_catalog.
 
-similarity — SigLIP 2 cosine similarity of the best candidate (best of the two query views);
-margin — fusion score gap between the first and the second candidate.
+similarity — уверенность по первому каскаду (DINOv2) для победителя,
+определенного вторым каскадом (SigLIP 2 score fusion);
+margin — отрыв по баллам fusion (или DINOv2) между первым и вторым кандидатом.
 
-* not_in_catalog: similarity < 0.55. Raised from 0.485 after the manual check of real photos
-  (report 2026-09-29): false matches on wines not in the catalog drop from 19 to 10 of 39,
-  at the cost of 1 of 73 correct in-catalog answers (similarity 0.505).
-* found: similarity and margin above every not-in-catalog validation photo — the top-1 was
-  always right there.
-* probable: everything in between — the best candidate is shown, but the user should check it
-  (same-producer twins, other vintages, wines of the same series that are not in the catalog).
+* not_in_catalog: similarity < 0.55.
+* found: similarity >= found_min_similarity (0.83) и margin >= found_min_margin (0.15).
+* probable: все промежуточные случаи (близкие соседи, винные близнецы).
 """
 
 from __future__ import annotations
@@ -35,9 +32,12 @@ class RecognitionThresholds:
 
 
 def classify(similarity: float | None, margin: float | None, thresholds: RecognitionThresholds) -> tuple[str, str]:
-    """Returns (status, human-readable reason)."""
+    """Returns (status, human-readable reason).
+
+    similarity передается как собственная уверенность победителя из первого каскада (DINOv2).
+    """
     if similarity is None:
-        return PROBABLE, "SigLIP 2 недоступен: ответ только по DINOv2, уверенность не оценивается"
+        return PROBABLE, "Кандидаты не найдены: уверенность не оценивается"
     if similarity < thresholds.reject_below_similarity:
         return NOT_IN_CATALOG, (
             f"Сходство с лучшим вином каталога {similarity:.3f} < {thresholds.reject_below_similarity:.3f}: "

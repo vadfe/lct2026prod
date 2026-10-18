@@ -97,14 +97,14 @@ def make_pipeline(with_v4: bool = True, predict_threshold: float | None = None) 
     )
 
 
-def twins_repository(v4_rose_sira: float, v4_rose: float) -> FakeRepository:
-    """DINOv2 prefers «rose-sira», SigLIP 2 decides; «merlot» is a distant third candidate."""
+def twins_repository(v4_rose_sira: float, v4_rose: float, v1_rose_sira: float = 0.95, v1_rose: float = 0.93) -> FakeRepository:
+    """DINOv2 score can be customized; SigLIP 2 decides neighbors; «merlot» is a distant third candidate."""
     items = [product("rose-sira"), product("rose"), product("merlot", "Другая")]
     return FakeRepository(
         items,
         ["rose-sira", "rose", "merlot"],
         {
-            "v1": [{"rose-sira": 0.95, "rose": 0.93, "merlot": 0.60}, {"rose-sira": 0.94, "rose": 0.93, "merlot": 0.55}],
+            "v1": [{"rose-sira": v1_rose_sira, "rose": v1_rose, "merlot": 0.60}, {"rose-sira": v1_rose_sira - 0.01, "rose": v1_rose, "merlot": 0.55}],
             "v4": [{"rose-sira": v4_rose_sira, "rose": v4_rose, "merlot": 0.30}, {"rose-sira": v4_rose_sira - 0.02, "rose": v4_rose - 0.02, "merlot": 0.28}],
         },
     )
@@ -120,7 +120,8 @@ async def test_fusion_lets_siglip_overrule_dinov2_and_answers_found():
     assert response.status == FOUND
     assert response.winner.slug == "rose"
     assert [c.slug for c in response.final_results] == ["rose", "rose-sira", "merlot"]
-    assert response.confidence == pytest.approx(0.95)
+    # Уверенность победителя берется из первого каскада (DINOv2) победителя 'rose' (0.93)
+    assert response.confidence == pytest.approx(0.93)
     assert response.decision.margin > THRESHOLDS.found_min_margin
     assert response.bbox_crop.startswith("data:image/webp;base64,")
 
@@ -144,7 +145,8 @@ async def test_predict_reports_probable_as_found():
 @pytest.mark.asyncio
 async def test_low_similarity_means_not_in_catalog():
     pipeline = make_pipeline()
-    repository = twins_repository(v4_rose_sira=0.40, v4_rose=0.35)
+    # DINOv2 confidence below reject_below_similarity (0.485 in THRESHOLDS)
+    repository = twins_repository(v4_rose_sira=0.40, v4_rose=0.35, v1_rose_sira=0.45, v1_rose=0.42)
     response = await pipeline.run(IMAGE, repository, k=3)
     assert response.status == NOT_IN_CATALOG
     assert response.message == "Данного вина нет в каталоге"
@@ -157,7 +159,8 @@ async def test_low_similarity_means_not_in_catalog():
 
 @pytest.mark.asyncio
 async def test_predict_threshold_rejects_weak_answers():
-    repository = twins_repository(v4_rose_sira=0.70, v4_rose=0.60)
+    # v1 confidence is 0.75, so predict_threshold=0.8 rejects it
+    repository = twins_repository(v4_rose_sira=0.70, v4_rose=0.60, v1_rose_sira=0.75, v1_rose=0.70)
     assert (await make_pipeline().predict_top1(IMAGE, repository)).slug == "rose-sira"
     rejected = await make_pipeline(predict_threshold=0.8).predict_top1(IMAGE, repository)
     assert rejected.slug is None
