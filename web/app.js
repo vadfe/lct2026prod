@@ -61,26 +61,6 @@ async function getJson(url, options) {
 
 const fmt = (value, digits = 3) => (typeof value === 'number' ? value.toFixed(digits) : '—');
 
-// ---------- Пороги зон ответа ----------
-async function loadThresholds() {
-    const body = $('thresholds-body');
-    try {
-        const t = await getJson(api('/api/cascade/thresholds'));
-        const list = el('ul');
-        list.append(
-            el('li', '', `«Найдено»: сходство SigLIP 2 ≥ ${fmt(t.found_min_similarity)} и отрыв от второго кандидата ≥ ${fmt(t.found_min_margin)}`),
-            el('li', '', `«Нет в каталоге»: сходство SigLIP 2 < ${fmt(t.reject_below_similarity)}`),
-            el('li', '', '«Похоже»: всё между ними — лучший кандидат показан, его стоит сверить с этикеткой'),
-        );
-        if (typeof t.predict_threshold === 'number') list.append(el('li', '', `Дополнительный порог отказа: уверенность < ${fmt(t.predict_threshold)}`));
-        const intro = el('div', '', `DINOv2 отбирает ${t.candidate_pool} кандидатов, оценка = SigLIP 2 (2 вида кропа) + ${t.v1_weight} · DINOv2 (2 вида).`);
-        body.replaceChildren(intro, list);
-        if (t.stage === 'v1_only') body.append(el('div', 'somm-note', 'SigLIP 2 не загружен: все ответы получают статус «похоже».'));
-    } catch (error) {
-        body.textContent = `Пороги недоступны: ${error.message}`;
-    }
-}
-
 // ---------- Распознавание ----------
 async function cascadeSearch(blob) {
     const body = new FormData();
@@ -119,19 +99,9 @@ function renderResult(data, id, originalUrl) {
     const view = STATUS[data.status] || STATUS.probable;
     current = { data, slug: winner ? winner.slug : null, info: null };
 
-    // 1. Статус ответа и почему он выбран
+    // 1. Статус ответа
     $('status-banner').className = `status-banner ${data.status}`;
     $('status-title').textContent = `${view.icon} ${data.status === 'probable' ? data.message : view.title}`;
-    $('status-reason').textContent = data.decision ? data.decision.reason : '';
-    const meta = $('status-meta');
-    meta.replaceChildren();
-    const metaItem = (label, value) => { const span = el('span', '', `${label}: `); span.append(el('b', '', value)); meta.append(span); };
-    if (data.decision) {
-        metaItem('сходство', fmt(data.decision.similarity));
-        metaItem('отрыв', fmt(data.decision.margin));
-    }
-    if (data.timings) metaItem('время', `${Math.round(data.timings.total_ms)} мс`);
-    if (data.stage_reached === 'v1_only') metaItem('режим', 'только DINOv2');
 
     // 2. Карточка вина — только когда каскад выбрал вино
     $('wine-block').classList.toggle('hidden', !winner);
@@ -151,7 +121,7 @@ function renderResult(data, id, originalUrl) {
             ? 'Если на этикетке другое вино — оно может быть среди этих кандидатов.'
             : 'Это другие вина: такого низкого сходства не бывает у вин из каталога.';
         $('candidates-list').replaceChildren(...others.slice(0, 4).map(item => listItem(
-            item.image_url, item.title, item.manufacturer, `сходство SigLIP 2: ${fmt(item.v4_similarity ?? item.v1_similarity)}`,
+            item.image_url, item.title, item.manufacturer,
         )));
     }
 
@@ -232,6 +202,8 @@ async function renderWine(winner, status, id) {
         if (info.value.profile) renderProfile($('wine-description'), info.value.profile);
     }
 
+    loadWinePairing(winner.slug, id);
+
     const items = alts.status === 'fulfilled' ? alts.value.items : [];
     alternatives.replaceChildren(...(items.length
         ? items.map(item => listItem(item.image_url, item.name, item.winery, item.facts, item.reasons.join(' · ')))
@@ -309,6 +281,7 @@ function renderProfile(node, profile) {
 
 // ---------- Сомелье ----------
 async function pairWith(dish) {
+    if (!(await ensureAdult())) return;
     const answer = $('pairing-answer');
     answer.classList.remove('pairing-graphic');
     if (!current || !current.slug) {
@@ -556,7 +529,7 @@ $('btn-chat').addEventListener('click', () => {
 $('chat-form').addEventListener('submit', async event => {
     event.preventDefault();
     const message = $('chat-input').value.trim();
-    if (!message) return;
+    if (!message || !(await ensureAdult())) return;
     const answer = $('chat-answer');
     answer.classList.remove('pairing-graphic');
     answer.textContent = 'Сомелье думает…';
@@ -582,39 +555,16 @@ $('chat-form').addEventListener('submit', async event => {
 // Подбор вин в чате: карточки с фото бутылки, ролью варианта, совпадением и доводами; уместность типов — плашками.
 // Полный текст ответа (с LLM — живой пересказ) остаётся под «Пояснением сомелье».
 const ROLE_TONE = { 'Лучшее совпадение по правилам': 'best', 'Классический вариант': 'classic', 'Нестандартный выбор': 'rare' };
+const TYPE_LEVEL = { fit: 'great', maybe: 'ok', avoid: 'poor' };
 const TYPE_VERDICTS = [['подходит', 'fit', 'Подходит'], ['допустимо, с оговорками', 'maybe', 'С оговорками'], ['лучше избегать', 'avoid', 'Лучше избегать']];
 
 function pickCard(pick, index) {
-    const card = el('article', `rc-card role-${ROLE_TONE[pick.role] || 'other'}`);
-    const tone = WINE_TONE[pick.category] || 'neutral';
-
-    const media = el('div', `rc-media tone-${tone}`);
-    const image = document.createElement('img');
-    image.alt = pick.name;
-    image.loading = 'lazy';
-    image.src = pick.image_url ? api(pick.image_url) : 'img/glass_filled_straight.png';
-    if (!pick.image_url) media.classList.add('placeholder');
-    image.onerror = () => { media.classList.add('placeholder'); image.onerror = null; image.src = 'img/glass_filled_straight.png'; };
-    media.append(image, el('span', 'rc-num', String(index + 1)));
-
-    const body = el('div', 'rc-body');
-    body.append(el('span', 'rc-role', pick.role), el('div', 'rc-name', pick.name));
-    if (pick.winery) body.append(el('div', 'rc-winery', pick.winery));
-    const type = [pick.category && pick.category.toLowerCase(), pick.sparkling ? 'игристое' : '', pick.sweetness].filter(Boolean).join(', ');
-    body.append(chips([type, pick.grape, pick.region].filter(Boolean), 'trait'));
-
-    const match = el('div', 'rc-match');
-    const meter = el('span', 'pr-meter');
-    const fill = el('span', 'pr-meter-fill');
-    fill.style.width = `${Math.max(0, Math.min(100, Math.round(pick.score)))}%`;
-    meter.append(fill);
-    match.append(el('span', 'rc-match-label', 'Совпадение'), meter, el('b', '', String(Math.round(pick.score))));
-    body.append(match);
-
-    const top = el('div', 'rc-top');
-    top.append(media, body);
-    card.append(top);
-
+    const card = wineCard({
+        name: pick.name, role: pick.role, best: ROLE_TONE[pick.role] === 'best', number: index + 1,
+        meta: [pick.winery, pick.region].filter(Boolean).join(' · '), imageUrl: pick.image_url, tone: WINE_TONE[pick.category],
+        chipItems: [pick.grape, [pick.category && pick.category.toLowerCase(), pick.sparkling ? 'игристое' : '', pick.sweetness].filter(Boolean).join(' ')],
+        score: pick.score,
+    });
     const reasons = el('div', 'rc-reasons');
     (pick.pros || []).forEach(text => reasons.append(el('div', 'rc-reason plus', text)));
     (pick.cons || []).forEach(text => reasons.append(el('div', 'rc-reason minus', text)));
@@ -637,10 +587,10 @@ function pickCard(pick, index) {
 
 function renderRecommendation(node, data) {
     const parts = [];
-    const head = el('div', 'rc-head');
+    const head = el('div', 'pc2-dish');
     const dish = data.context && data.context.dish_text;
-    head.append(el('div', 'pr-group-title', dish ? 'Подбор к блюду' : 'Подбор вина'));
-    if (dish) head.append(el('div', 'pr-dish', dish));
+    head.append(el('span', 'pc2-dish-kicker', dish ? 'Подбираем к блюду' : 'Подбор вина'));
+    if (dish) head.append(el('div', 'pc2-dish-name', dish));
     if (data.dish_traits && data.dish_traits.length) head.append(chips(data.dish_traits, 'trait'));
     if (data.total) head.append(el('div', 'rc-pool', data.pool === data.total
         ? `Выбирал из всех ${data.total} вин каталога. Три варианта разных стилей:`
@@ -648,14 +598,17 @@ function renderRecommendation(node, data) {
     parts.push(head, ...data.picks.map(pickCard));
 
     if (data.types && data.types.length) {
-        const box = el('div', 'pr-group rc-types');
+        const box = el('div', 'pr-group pc2-grapes');
         box.append(el('div', 'pr-group-title', 'Какие типы вина уместны'));
         TYPE_VERDICTS.forEach(([verdict, cls, title]) => {
             const rows = data.types.slice(0, 8).filter(t => t.verdict === verdict);
             if (!rows.length) return;
-            const line = el('div', `rc-type-row ${cls}`);
-            line.append(el('span', 'rc-type-verdict', title),
-                chips(rows.map(t => [t.cat.toLowerCase(), t.sparkling ? 'игристое' : '', t.sweet].filter(Boolean).join(' ')), `type-${cls}`));
+            const line = el('div', 'pc2-grape-row');
+            line.append(el('span', `pc2-grape-title ${cls}`, title));
+            const list = el('div', 'wd-chips');
+            rows.forEach(t => list.append(el('span', `wd-chip pc2-grape level-${TYPE_LEVEL[cls]}`,
+                [t.cat.toLowerCase(), t.sparkling ? 'игристое' : '', t.sweet].filter(Boolean).join(' '))));
+            line.append(list);
             box.append(line);
         });
         parts.push(box);
@@ -669,6 +622,382 @@ function renderRecommendation(node, data) {
 
     node.replaceChildren(...parts);
     node.classList.add('pairing-graphic');
+}
+
+// ---------- Подбор «блюдо → сорт → бутылка» (/api/sommelier/pairing/*, docs/SOMMELIER_PAIRING.md) ----------
+// Возрастной барьер 18+ при первом входе в функции сомелье: ответ запоминается на устройстве.
+function ensureAdult() {
+    if (storage.get('vina_age_ok') === '1') return Promise.resolve(true);
+    const modal = $('age-modal');
+    modal.classList.remove('hidden');
+    return new Promise(resolve => {
+        const done = ok => {
+            modal.classList.add('hidden');
+            if (ok) storage.set('vina_age_ok', '1');
+            else showToast('Функции сомелье доступны только с 18 лет.');
+            resolve(ok);
+        };
+        $('btn-age-yes').onclick = () => done(true);
+        $('btn-age-no').onclick = () => done(false);
+        modal.querySelector('.modal-backdrop').onclick = () => done(false);
+    });
+}
+
+const priceText = value => (typeof value === 'number' ? `${value.toLocaleString('ru-RU')} ₽` : 'цена не указана');
+
+function demoBadge(data) {
+    return data.catalog_source === 'demo'
+        ? el('div', 'demo-badge', 'Демо-данные: вымышленные производители и цены, не реальные товары')
+        : null;
+}
+
+// Уровень сочетания по баллу 0–100: цвет карточки, кольца и плашек (классы .level-* в vina.css)
+const PAIR_LEVELS = [[90, 'great', 'отлично'], [75, 'good', 'хорошо'], [60, 'ok', 'приемлемо'], [0, 'poor', 'слабо']];
+const pairLevel = score => PAIR_LEVELS.find(([min]) => score >= min) || PAIR_LEVELS[PAIR_LEVELS.length - 1];
+
+// Ягода по месту на шкале: приглушённые тона от пыльной розы через абрикос и мёд к шалфею (палитра vino-svoe.ru)
+const GRADE_STOPS = [[207, 143, 136], [228, 173, 127], [226, 199, 127], [185, 201, 140], [143, 180, 138]];
+function gradeColor(t) {
+    const x = Math.max(0, Math.min(1, t)) * (GRADE_STOPS.length - 1);
+    const i = Math.min(GRADE_STOPS.length - 2, Math.floor(x));
+    const [a, b] = [GRADE_STOPS[i], GRADE_STOPS[i + 1]];
+    return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * (x - i))).join(',')})`;
+}
+
+// Веточка с листиком перед ягодами: шкала читается как гроздь
+function vineSprig() {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('class', 'gb-sprig');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = (d, cls) => {
+        const node = document.createElementNS(SVG_NS, 'path');
+        node.setAttribute('d', d);
+        node.setAttribute('class', cls);
+        return node;
+    };
+    svg.append(path('M2 3 C6 4 9 6 13 9', 'gb-stem'), path('M5 4 C4 0.5 9 0 9.5 3.5 C7.5 5 6 5 5 4 Z', 'gb-leaf'));
+    return svg;
+}
+
+// Шкала-гроздь: value из шкалы 0…max — столько спелых ягод (половина — половинка), слово уровня;
+// mark — уровень блюда на той же шкале, отмечается ▲ под соответствующей ягодой
+function gradeBar(label, value, max, words, mark) {
+    const row = el('div', 'gb-row');
+    const head = el('div', 'gb-head');
+    const word = words[Math.max(0, Math.min(words.length - 1, Math.round(value)))];
+    head.append(el('span', 'gb-label', label), el('span', 'gb-word', word));
+    const track = el('div', 'gb-track');
+    track.append(vineSprig());
+    const marked = typeof mark === 'number' ? Math.round(mark) : null;
+    for (let i = 1; i <= max; i += 1) {
+        const fill = Math.max(0, Math.min(1, value - (i - 1)));
+        const berry = el('span', `gb-berry${fill >= 0.75 ? ' on' : fill >= 0.25 ? ' half' : ''}${marked === i ? ' marked' : ''}`);
+        berry.style.setProperty('--berry', gradeColor(max > 1 ? (i - 1) / (max - 1) : 1));
+        if (marked === i) berry.title = 'уровень блюда';
+        track.append(berry);
+    }
+    if (marked === 0) track.classList.add('marked-zero');
+    row.append(head, track);
+    return row;
+}
+
+const DISH_WORDS = ['нет', 'слабая', 'средняя', 'высокая'];
+
+function dishHero(dish) {
+    const box = el('div', 'pc2-dish');
+    const head = el('div', 'pc2-dish-head');
+    head.append(el('span', 'pc2-dish-kicker', 'Подбираем к блюду'), el('div', 'pc2-dish-name', dish.name));
+    const tags = [dish.cuisine && `${dish.cuisine} кухня`].filter(Boolean);
+    if (dish.estimated) tags.push(dish.source === 'llm' ? 'профиль оценён моделью' : 'профиль оценён по словам');
+    if (tags.length) head.append(chips(tags, 'trait'));
+    const grid = el('div', 'gb-grid');
+    [['body', 'Насыщенность'], ['fat_protein', 'Жирность'], ['acid', 'Кислотность'],
+        ['spicy', 'Острота'], ['salty', 'Солёность'], ['sweet', 'Сладость']].forEach(([key, label]) => {
+        if (typeof dish[key] === 'number') grid.append(gradeBar(label, dish[key], 3, DISH_WORDS));
+    });
+    box.append(head, grid);
+    return box;
+}
+
+// Тело и танины в пределах допуска (скоринг пишет «в тон» / «в меру») — совпадение, хотя балл может быть чуть ниже нуля
+const isMatch = f => ((f.rule === 'body' || f.rule === 'tannin') && /в тон|в меру/.test(f.text)) || f.rule === 'profile_same';
+
+// «профиль: та же плотность и танины, свежее» (подбор аналога) — сходства и отличия отдельными доводами
+function splitFactors(factors) {
+    return factors.flatMap(f => {
+        if (f.rule !== 'profile') return [f];
+        return f.text.replace(/^профиль:\s*/, '').split(', ').map(part => (/^(та же|те же|похожий)/.test(part)
+            ? { rule: 'profile_same', points: 0, text: part }
+            : { rule: 'profile_diff', points: -1, text: part }));
+    });
+}
+
+// Доводы карточки: сильнейшие «за» и «против» из правил скоринга, по одной строке. Вклад меньше балла — не довод.
+function wineReasons(why) {
+    const factors = splitFactors([...(why.factors || []), ...(why.adjustments || [])]);
+    const plus = [...factors.filter(f => f.points >= 1 && !isMatch(f)).sort((a, b) => b.points - a.points), ...factors.filter(isMatch)].slice(0, 2);
+    const minus = factors.filter(f => f.points <= -1 && !isMatch(f)).sort((a, b) => a.points - b.points).slice(0, 2);
+    const box = el('div', 'rc-reasons');
+    plus.forEach(f => box.append(el('div', 'rc-reason plus', f.text)));
+    minus.forEach(f => box.append(el('div', 'rc-reason minus', f.text)));
+    return box.children.length ? box : null;
+}
+
+// Прогресс-бар «Совпадение»: приглушённый градиент на всю шкалу (цвет на конце — уровень), деления по 25 %,
+// ягода-ползунок цвета балла, число и слово уровня; при появлении полоска плавно заполняется
+function matchMeter(score) {
+    const percent = Math.max(0, Math.min(100, Math.round(score)));
+    const [, , word] = pairLevel(score);
+    const box = el('div', 'mm');
+    const head = el('div', 'mm-head');
+    const value = el('div', 'mm-value');
+    value.append(el('b', '', String(percent)), el('span', 'mm-word', word));
+    head.append(el('span', 'mm-label', 'Совпадение'), value);
+    const track = el('div', 'mm-track');
+    const fill = el('span', 'mm-fill');
+    fill.style.width = `${percent}%`;
+    fill.style.backgroundSize = `${percent ? 10000 / percent : 100}% 100%`;
+    const knob = el('span', 'mm-knob');
+    knob.style.left = `${percent}%`;
+    knob.style.setProperty('--berry', gradeColor(percent / 100));
+    track.append(fill, knob);
+    box.append(head, track);
+    return box;
+}
+
+// Каркас карточки вина — общий для подбора к блюду и для чата сомелье: фото, роль, название, производитель,
+// плашки, полоса цвета уровня сверху и прогресс-бар совпадения
+function wineCard({ name, role, best, russian, number, meta, imageUrl, tone, chipItems, score }) {
+    const scored = typeof score === 'number';
+    const level = scored ? pairLevel(score)[1] : 'none';
+    const card = el('article', `pc2-card level-${level}${best ? ' best' : ''}`);
+    const media = el('div', `rc-media tone-${tone || 'neutral'}`);
+    const image = document.createElement('img');
+    image.alt = name;
+    image.loading = 'lazy';
+    image.src = imageUrl ? api(imageUrl) : 'img/glass_filled_straight.png';
+    if (!imageUrl) media.classList.add('placeholder');
+    image.onerror = () => { media.classList.add('placeholder'); image.onerror = null; image.src = 'img/glass_filled_straight.png'; };
+    media.append(image);
+    if (number) media.append(el('span', 'pc2-num', String(number)));
+
+    const body = el('div', 'rc-body');
+    const badges = el('div', 'pc2-badges');
+    if (role) badges.append(el('span', 'pc2-role', role));
+    if (russian) badges.append(el('span', 'pc-ru', 'Россия'));
+    if (badges.children.length) body.append(badges);
+    body.append(el('div', 'rc-name', name));
+    if (meta) body.append(el('div', 'rc-winery', meta));
+    const items = (chipItems || []).filter(Boolean);
+    if (items.length) body.append(chips(items, 'trait'));
+    const top = el('div', 'rc-top');
+    top.append(media, body);
+    card.append(top);
+    if (scored) card.append(matchMeter(score));
+    return card;
+}
+
+// Карточка бутылки: фото, оценка цветом уровня, профиль вина шкалами против уровня блюда, 2–4 коротких довода.
+// Правило сорта, история и вклад каждого правила — под «Подробнее».
+function bottleCard(w, dish) {
+    const card = wineCard({
+        name: w.name, role: w.role_label, best: w.role === 'best_match', russian: w.is_russian,
+        meta: [w.producer, w.region, w.is_russian ? '' : w.country].filter(Boolean).join(' · '),
+        imageUrl: w.image_url, tone: WINE_TONE[w.color],
+        chipItems: [w.grape, [w.color && w.color.toLowerCase(), w.sweetness].filter(Boolean).join(' '),
+            w.oak === 'да' ? 'дуб' : '', typeof w.price_rub === 'number' ? priceText(w.price_rub) : ''],
+        score: w.score,
+    });
+
+    const why = w.why;
+    if (why && typeof why.body === 'number') {
+        const grid = el('div', 'gb-grid wine');
+        grid.append(
+            gradeBar('Тело', why.body, 3, ['', 'лёгкое', 'среднее', 'полное'], dish ? dish.body : undefined),
+            gradeBar('Кислотность', why.acidity, 4, ['', 'низкая', 'средняя', 'высокая', 'очень высокая'], dish ? dish.acid + 1 : undefined),
+            gradeBar('Танины', why.tannins, 3, ['нет', 'низкие', 'средние', 'высокие'], dish ? dish.fat_protein : undefined),
+        );
+        card.append(grid);
+        if (dish) {
+            const legend = el('div', 'gb-legend');
+            legend.append(el('span', 'gb-legend-mark', '▲'), ' — уровень блюда');
+            card.append(legend);
+        }
+        const reasons = wineReasons(why);
+        if (reasons) card.append(reasons);
+    } else if (w.explanation) {
+        card.append(el('p', 'pc-text', w.explanation));
+    }
+
+    if (why || w.story) {
+        const details = document.createElement('details');
+        details.className = 'pc-why';
+        details.append(el('summary', '', 'Подробнее'));
+        if (w.story) details.append(el('p', 'pc-rule', w.story));
+        if (why && why.rule) details.append(el('p', 'pc-rule', `Правило сорта ${why.grape}: ${why.rule}`));
+        const list = el('div', 'pc2-factors');
+        splitFactors([...((why && why.factors) || []), ...((why && why.adjustments) || [])]).filter(f => isMatch(f) || Math.abs(Math.round(f.points)) >= 1).forEach(f => {
+            const row = el('div', `pc2-factor ${isMatch(f) || f.points > 0 ? 'plus' : 'minus'}`);
+            const mark = isMatch(f) ? '✓' : f.rule === 'profile_diff' ? '≠' : `${f.points > 0 ? '+' : '−'}${Math.abs(Math.round(f.points))}`;
+            row.append(el('b', '', mark), el('span', '', f.text));
+            list.append(row);
+        });
+        if (list.children.length) details.append(list);
+        card.append(details);
+    }
+    if (w.url && /^https?:\/\//.test(w.url)) {
+        const link = el('a', 'rc-link', 'Карточка вина в каталоге →');
+        link.href = w.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        card.append(link);
+    }
+    return card;
+}
+
+// Сорта к блюду: подходящие и неподходящие плашками цвета уровня
+function grapesOverview(grapes) {
+    const box = el('div', 'pr-group pc2-grapes');
+    box.append(el('div', 'pr-group-title', 'Сорта к этому блюду'));
+    [[true, 'Подойдут'], [false, 'Не подойдут']].forEach(([passed, title]) => {
+        const rows = grapes.filter(g => Boolean(g.passed) === passed);
+        if (!rows.length) return;
+        const line = el('div', 'pc2-grape-row');
+        line.append(el('span', `pc2-grape-title ${passed ? 'fit' : 'avoid'}`, title));
+        const list = el('div', 'wd-chips');
+        rows.forEach(g => {
+            const chip = el('span', `wd-chip pc2-grape level-${pairLevel(g.score)[1]}`);
+            chip.append(el('span', '', g.name), el('b', '', String(Math.round(g.score))));
+            list.append(chip);
+        });
+        line.append(list);
+        box.append(line);
+    });
+    return box;
+}
+
+// Свойства зарубежного вина, к которому ищем российский аналог (описала модель или справочник стилей)
+function foreignBlock(f) {
+    const box = el('div', 'pc2-dish');
+    const head = el('div', 'pc2-dish-head');
+    head.append(el('span', 'pc2-dish-kicker', 'Ищем российский аналог'), el('div', 'pc2-dish-name', f.name));
+    head.append(chips([f.color && f.color.toLowerCase(), f.sweetness, f.country, f.oak === 'да' ? 'дуб' : '',
+        f.source === 'llm' ? 'свойства описала модель' : 'из справочника стилей'].filter(Boolean), 'trait'));
+    const grid = el('div', 'gb-grid wine');
+    grid.append(
+        gradeBar('Тело', f.body, 3, ['', 'лёгкое', 'среднее', 'полное']),
+        gradeBar('Кислотность', f.acidity, 4, ['', 'низкая', 'средняя', 'высокая', 'очень высокая']),
+        gradeBar('Танины', f.tannins, 3, ['нет', 'низкие', 'средние', 'высокие']),
+    );
+    box.append(head, grid);
+    return box;
+}
+
+function renderPairingResult(node, data) {
+    const parts = [];
+    const badge = demoBadge(data);
+    if (badge) parts.push(badge);
+    if (data.kind === 'clarify' || data.kind === 'guardrail') {
+        parts.push(el('p', 'somm-text', data.question || data.text));
+        node.replaceChildren(...parts);
+        return;
+    }
+    const dish = data.dish_profile;
+    if (dish) parts.push(dishHero(dish));
+    if (data.foreign) parts.push(foreignBlock(data.foreign));
+    if (data.analogs && data.analogs.length) data.analogs.forEach(a => parts.push(el('p', 'pc-bridge', a.phrase)));
+    (data.notes || []).forEach(n => parts.push(el('div', 'pc-note', n)));
+    if (data.wines && data.wines.length) parts.push(...data.wines.map(w => bottleCard(w, dish)));
+    else if (data.empty_reason) parts.push(el('p', 'somm-text', data.empty_reason));
+    if (dish && data.grapes && data.grapes.length) parts.push(grapesOverview(data.grapes));
+    if (data.explanation && !['similar', 'analog'].includes(data.kind)) {
+        const details = document.createElement('details');
+        details.className = 'rc-details';
+        const llm = data.source && data.source.explanation === 'llm';
+        details.append(el('summary', '', llm ? 'Объяснение сомелье текстом' : 'Объяснение текстом'), el('div', 'somm-text', data.explanation));
+        parts.push(details);
+    }
+    if (data.note) parts.push(el('div', 'pr-note', data.note));
+    node.replaceChildren(...parts);
+    node.classList.add('pairing-graphic');
+}
+
+$('pairing-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const node = $('pairing-result');
+    const query = $('pairing-query').value.trim();
+    const scenario = $('pairing-scenario').value;
+    if (!query && scenario !== 'gift') return;
+    if (!(await ensureAdult())) return;
+    const filters = {};
+    if ($('pairing-color').value) filters.color = $('pairing-color').value;
+    if ($('pairing-sweetness').value) filters.sweetness = $('pairing-sweetness').value.split(',');
+    const budget = Number($('pairing-budget').value);
+    if (budget > 0) filters.budget_max = budget;
+    node.replaceChildren(el('p', 'item-meta', 'Сомелье подбирает…'));
+    try {
+        const data = await getJson(api('/api/sommelier/pairing/dish'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, filters, scenario }),
+        });
+        renderPairingResult(node, data);
+    } catch (error) {
+        node.replaceChildren(el('p', 'somm-text', `Сомелье недоступен: ${error.message}`));
+    }
+});
+
+// С2 + С3: распознанная этикетка -> slug -> 5 блюд и правило сорта; для импортного сорта — «мост» к российским аналогам.
+async function loadWinePairing(slug, id) {
+    const node = $('wine-pairing');
+    $('wine-pairing-section').classList.toggle('hidden', !slug);
+    if (!slug) return;
+    if (storage.get('vina_age_ok') !== '1') {
+        const btn = el('button', 'btn btn-secondary', 'Показать сочетания (18+)');
+        btn.addEventListener('click', async () => { if (await ensureAdult()) loadWinePairing(slug, id); });
+        node.replaceChildren(btn);
+        return;
+    }
+    node.replaceChildren(el('p', 'item-meta', 'Сомелье подбирает блюда…'));
+    let data;
+    try {
+        data = await getJson(api(`/api/sommelier/pairing/wine/${encodeURIComponent(slug)}`));
+    } catch (error) {
+        if (id === request) node.replaceChildren(el('p', 'item-meta', `Сочетания недоступны: ${error.message}`));
+        return;
+    }
+    if (id !== request) return;
+    const parts = [];
+    if (data.wine && data.wine.source === 'demo') parts.push(demoBadge(data));
+    if (!data.dishes || !data.dishes.length) {
+        parts.push(el('p', 'item-meta', data.message || 'Для этого вина сочетания не определены.'));
+        node.replaceChildren(...parts);
+        return;
+    }
+    const list = el('div', 'pc-dishes');
+    data.dishes.forEach(d => {
+        const row = el('div', 'pc-dish-row');
+        row.append(el('span', '', d.name), el('b', '', String(Math.round(d.score))));
+        list.append(row);
+    });
+    parts.push(list);
+    const details = document.createElement('details');
+    details.className = 'pc-why';
+    details.append(el('summary', '', 'Почему это сочетание?'), el('p', 'pc-rule', `Правило сорта ${data.grape.name}: ${data.rule}`));
+    parts.push(details);
+    if (data.story) parts.push(el('p', 'pc-text', data.story));
+    if (data.bridge) {
+        parts.push(el('div', 'pr-group-title', 'Похожее, но российское'), el('p', 'pc-bridge', data.bridge));
+        try {
+            const similar = await getJson(api(`/api/sommelier/similar/${encodeURIComponent(data.grape.grape_id)}?russian=true`));
+            if (id !== request) return;
+            const badge = demoBadge(similar);
+            if (badge && similar.wines && similar.wines.length) parts.push(badge);
+            parts.push(...(similar.wines || []).map(w => bottleCard(w)));
+        } catch { /* блок аналогов необязателен */ }
+    }
+    node.replaceChildren(...parts);
 }
 
 // ---------- Оценка бокалами (хранится на устройстве) ----------
@@ -974,7 +1303,6 @@ function applyApiBase(value) {
     updateServerLinks();
     closeSettings();
     checkServerHealth();
-    loadThresholds();
     showToast(value ? `Сервер: ${value}` : 'Сервер: этот сайт');
 }
 
@@ -1015,5 +1343,4 @@ async function checkServerHealth() {
 
 updateServerLinks();
 checkServerHealth();
-loadThresholds();
 start();
