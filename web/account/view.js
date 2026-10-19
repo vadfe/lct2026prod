@@ -3,7 +3,7 @@
 // Всё хранится только в браузере (store.js); сервер вызывается лишь за справкой о вине и похожими винами.
 import { artSvg } from './art.js';
 import {
-    COLORS, DISLIKE_RATING, GUIDE, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_SEEDS, REVIEW_MIN_CHARS, SUGARS, TEXTS,
+    COLORS, DISLIKE_RATING, GUIDE, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_PAGE, RECS_SEEDS, REVIEW_MIN_CHARS, SUGARS, TEXTS,
     VINE_FULL_POINTS, VINE_STAGES, WEIGHTS,
 } from './config.js';
 import * as store from './store.js';
@@ -201,19 +201,26 @@ function summaryCard(m, go) {
     who.append(el('div', 'acc-name', account.name), el('div', 'acc-muted', `${m.points} / ${VINE_FULL_POINTS} очков · ${m.counts.cellar} в погребе`));
     head.append(who);
     const chips = el('div', 'acc-sum-chips');
-    const chip = (index, art, label) => {
+    const chip = (index, art, label, hint) => {
         const c = button('acc-sum-chip', '', () => go(index));
+        c.title = hint;
+        c.setAttribute('aria-label', hint);
         c.append(art, el('span', '', label));
         return c;
     };
     const earnedRegions = m.regions.filter(r => r.earned);
+    const earnedStatuses = m.statuses.filter(s => s.earned);
     const statusArt = el('span', 'acc-sum-statuses');
-    m.statuses.forEach(s => statusArt.append(artSvg('statuses', s.key, { size: 26, locked: !s.earned })));
+    m.statuses.forEach(s => statusArt.append(artSvg('statuses', s.key, { size: 26, locked: !s.earned, title: s.title })));
     chips.append(
-        chip(0, artSvg('vine', m.stage.key, { size: 34 }), `${Math.round(m.progress * 100)}%`),
-        chip(1, artSvg('fruits', m.fruit.key, { size: 34 }), m.fruit.title),
-        chip(2, artSvg('regions', (earnedRegions[0] || m.regions[0]).key, { size: 34, locked: !earnedRegions.length }), `${earnedRegions.length} / ${m.regions.length}`),
-        chip(3, statusArt, `${m.statuses.filter(s => s.earned).length} / ${m.statuses.length}`),
+        chip(0, artSvg('vine', m.stage.key, { size: 34 }), `${Math.round(m.progress * 100)}%`,
+            `Путь лозы: «${m.stage.title}», ${m.points} из ${VINE_FULL_POINTS} очков`),
+        chip(1, artSvg('fruits', m.fruit.key, { size: 34 }), m.fruit.title,
+            `Ваш фрукт: ${m.fruit.title} — ${m.fruit.color.toLowerCase()}, ${m.fruit.sugar}`),
+        chip(2, artSvg('regions', (earnedRegions[0] || m.regions[0]).key, { size: 34, locked: !earnedRegions.length }), `${earnedRegions.length} / ${m.regions.length}`,
+            earnedRegions.length ? `Региональные символы: ${earnedRegions.map(r => r.title).join(', ')}` : 'Региональные символы: пока ни одного'),
+        chip(3, statusArt, `${earnedStatuses.length} / ${m.statuses.length}`,
+            earnedStatuses.length ? `Статусы: ${earnedStatuses.map(s => s.title).join(', ')}` : 'Статусы: пока ни одного — смотрите условия'),
     );
     box.append(head, chips);
     return box;
@@ -267,7 +274,7 @@ function vineSlide(m) {
         stages.append(item);
     });
     box.append(row, stages, el('div', 'acc-rule',
-        `Как растёт: скан +${POINTS.scan} · вино в погреб +${POINTS.cellar} · рецензия от ${REVIEW_MIN_CHARS} символов +${POINTS.review}. Сейчас: сканы ${m.parts.scan}, погреб ${m.parts.cellar}, рецензии ${m.parts.review}.`));
+        `Как растёт: скан +${POINTS.scan} · вино в погреб +${POINTS.cellar} · рецензия от ${REVIEW_MIN_CHARS} символов +${POINTS.review}. Ваши очки: за сканы ${m.parts.scan}, за погреб ${m.parts.cellar}, за рецензии ${m.parts.review}.`));
     return box;
 }
 
@@ -307,6 +314,7 @@ function regionsSlide(m) {
     const grid = el('div', 'acc-regions');
     m.regions.forEach(r => {
         const item = el('div', `acc-region${r.earned ? ' earned' : ''}`);
+        item.title = r.other ? `${r.title}: ${r.hint}` : `${r.title}: вина региона «${r.regions[0]}»`;
         item.append(artSvg('regions', r.key, { size: 56, locked: !r.earned }), el('div', 'acc-region-title', r.title));
         item.append(el('div', 'acc-muted', r.earned
             ? `${r.count} ${store.plural(r.count, 'вино', 'вина', 'вин')}`
@@ -321,6 +329,7 @@ function statusesSlide(m) {
     const box = card('Высшая лига', 'Статусы');
     m.statuses.forEach(s => {
         const row = el('div', `acc-status${s.earned ? ' earned' : ''}`);
+        row.title = `${s.title}: за ${s.rule(s.need)}`;
         row.append(artSvg('statuses', s.key, { size: 72, locked: !s.earned }));
         const info = el('div', 'acc-status-info');
         info.append(el('div', 'acc-status-title', s.title), el('div', 'acc-muted', `За ${s.rule(s.need)}`), bar(s.value / s.need),
@@ -374,7 +383,7 @@ async function loadRecs(list) {
     const exclude = new Set([...Object.keys(cellar), ...seeds]);
     const picks = new Map();
     const results = await Promise.allSettled(seeds.map(slug =>
-        ctx.getJson(ctx.api(`/api/sommelier/wine/${encodeURIComponent(slug)}/alternatives?limit=4`))));
+        ctx.getJson(ctx.api(`/api/sommelier/wine/${encodeURIComponent(slug)}/alternatives?limit=6`))));
     results.flatMap(r => (r.status === 'fulfilled' ? r.value.items : []))
         .sort((a, b) => b.score - a.score)
         .forEach(item => {
@@ -404,15 +413,26 @@ async function loadRecs(list) {
         list.replaceChildren(el('div', 'acc-muted', 'Добавьте вино в погреб или поставьте оценку — и здесь появятся похожие вина.'));
         return;
     }
-    list.replaceChildren(...items.map(item => {
-        const tile = button('acc-rec', '', () => openWine(item));
-        tile.append(thumb(item.image_url));
+    const tile = item => {
+        const t = button('acc-rec', '', () => openWine(item));
+        t.title = `${item.title}: открыть карточку вина`;
+        t.append(thumb(item.image_url));
         const text = el('div', 'acc-rec-text');
         text.append(el('div', 'acc-rec-title', item.title), el('div', 'acc-muted', item.winery || ''));
         if (item.note) text.append(el('div', 'acc-rec-note', item.note));
-        tile.append(text);
-        return tile;
-    }));
+        t.append(text);
+        return t;
+    };
+    let shown = 0;
+    const more = button('acc-btn small acc-more', 'Больше рекомендаций', () => showMore());
+    const showMore = () => {
+        const next = items.slice(shown, shown + RECS_PAGE);
+        shown += next.length;
+        more.before(...next.map(tile));
+        more.classList.toggle('hidden', shown >= items.length);
+    };
+    list.replaceChildren(more);
+    showMore();
 }
 
 // ---------- погреб, рецензии, история ----------

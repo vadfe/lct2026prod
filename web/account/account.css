@@ -173,12 +173,20 @@
     font: inherit; font-size: 13px; color: var(--acc-ink-2); cursor: pointer;
 }
 .acc-slide-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
+/* Все карточки карусели одной высоты по видимой высоте телефона (шапка, сводка, вкладки и точки остаются на экране);
+   длинное содержимое прокручивается внутри карточки */
+.acc-carousel { --acc-slide-h: clamp(380px, calc(100vh - 300px), 600px); }
+@supports (height: 100dvh) { .acc-carousel { --acc-slide-h: clamp(380px, calc(100dvh - 300px), 600px); } }
 .acc-track {
-    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none; align-items: flex-start;
+    display: flex; gap: 12px; height: var(--acc-slide-h); overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
 .acc-track::-webkit-scrollbar { display: none; }
-.acc-slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; }
+.acc-slide {
+    flex: 0 0 100%; height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain;
+    scroll-snap-align: start; scroll-snap-stop: always; scrollbar-width: thin;
+}
+.acc-more { align-self: center; margin-top: 4px; }
 .acc-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
 .acc-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--acc-line); cursor: pointer; }
 .acc-dot.on { width: 20px; border-radius: 999px; background: var(--acc-wine); }

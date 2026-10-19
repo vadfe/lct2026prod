@@ -59,7 +59,8 @@ export const REGION_SYMBOLS = [
 ];
 
 export const HISTORY_LIMIT = 200;
-export const RECS_LIMIT = 6;
+export const RECS_LIMIT = 12;      // сколько советов подбираем всего
+export const RECS_PAGE = 4;        // сколько показываем сразу и добавляем кнопкой «Больше рекомендаций»
 export const RECS_SEEDS = 3;       // от скольких последних любимых вин берём похожие
 
 export const PROVIDERS = {
