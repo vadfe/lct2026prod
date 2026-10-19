@@ -3,18 +3,20 @@
 Сервис распознаёт винные этикетки по фотографии и находит вино в каталоге. В проект также входит AI-сомелье, который подбирает вина к блюду. Всё работает в одном процессе FastAPI на порту `8080`. Товары и векторы изображений хранятся в PostgreSQL 16 с расширением pgvector.
 
 ```
-Клиент (браузер / мобильный сканер / participant_test.sh)
+Клиент (браузер / сканер web/ или его копия на GitHub Pages / participant_test.sh)
         │  HTTP :8080  (в проде Apache проксирует только /api/)
+        │  или публичный вход для тестов: nginx :8031 → HTTPS-туннель (профиль compose `public`)
         ▼
 FastAPI (app/main.py)
   ├─ /api/*            JSON API: health, products, imports, search v1–v4, cascade, twins, sommelier
   ├─ /, /search-*, …   HTML-страницы (Jinja-шаблоны app/web/templates)
-  ├─ /mobi/            мобильный клиент (web/)
+  ├─ /mobi/            основной сканер «Своё Вино» (web/): каскад + сомелье
   └─ /export/          автономный мобильный сканер каскада (export/)
         │
         ├─ ML (GPU): YOLO detect/seg → DINOv2-small LoRA (384d) → SigLIP 2 LoRA (768d) → слияние оценок и зоны ответа
         ├─ PostgreSQL + pgvector: products, product_embeddings, product_embeddings_v2/v3/v4, import_jobs
-        └─ Файлы: /models (read-only), /media (кропы и медиа товаров), /imports (входные данные каталога)
+        ├─ Файлы: /models (read-only), /media (кропы и медиа товаров, кеш Hugging Face), /imports (входные данные каталога)
+        └─ Внешние сервисы (необязательно): Google Gemini для текстов сомелье, huggingface.co при первом старте
 ```
 
 ---
@@ -29,12 +31,19 @@ lct2026prod/
 ├── README.md                  # обзор и быстрый запуск
 ├── Architecture.md            # этот документ
 ├── Dockerfile                 # образ API: PyTorch 2.x + CUDA, uvicorn на :8080
-├── compose.yaml               # сервисы db (pgvector), migrate (alembic), api (GPU)
+├── compose.yaml               # сервисы db (pgvector), migrate (alembic), api (GPU);
+│                              # профили public / cloudflare: nginx-вход :8031 и HTTPS-туннель
 ├── pyproject.toml             # зависимости, настройки pytest / ruff / mypy
 ├── alembic.ini                # конфигурация миграций
 ├── .env.example               # шаблон переменных окружения
-├── .gitattributes             # правила Git LFS (*.pt, *.bin, *.safetensors, data/*.gz …)
-├── .github/workflows/ci.yml   # CI: миграции, alembic check, ruff, pytest, docker build
+├── .gitattributes             # правила Git LFS (*.pt, *.onnx, *.bin, *.safetensors, data/*.sql.gz, data/*.tar.gz …)
+├── .github/workflows/
+│   ├── ci.yml                 # CI: миграции, alembic check, ruff, pytest, docker build
+│   └── pages.yml              # публикация сканера web/ на GitHub Pages
+├── deploy/public/nginx.conf   # публичный вход: только сканер, распознавание, сомелье и чтение каталога
+├── queries/, queries.tsv,     # комплект финальной проверки: 100 контрольных фото, runner,
+│   participant_test.sh,       #   эталонные ответы и контрольные суммы (queries/README.md)
+│   predictions.jsonl, checksums.sha256
 │
 ├── app/                       # backend-приложение (Python-пакет)
 │   ├── main.py                # создание FastAPI, middleware X-Request-ID, CORS, static-mount
@@ -61,13 +70,13 @@ lct2026prod/
 │   └── web/                   # HTML-роуты, тестовые стенды detect/rectify, templates/, static/
 │
 ├── alembic/versions/          # миграции схемы (0001 products … 0007 embeddings_v4)
-├── web/                       # мобильный клиент камеры (/mobi/): index.html, app.js, detector.js
+├── web/                       # основной сканер (/mobi/ и GitHub Pages): index.html, app.js, detector.js, add.html
 ├── export/                    # автономный мобильный сканер каскада (ONNX YOLO в браузере)
 ├── scripts/                   # импорт каталога, построение эмбеддингов, обучение, бенчмарки, бэкап
 ├── train/losses.py            # SupCon loss для дообучения
 ├── tests/                     # pytest
 ├── models/                    # веса моделей (Git LFS) + MODEL_MANIFEST.sha256
-├── data/                      # боевые дампы БД и архив медиа (Git LFS)
+├── data/                      # боевые дампы БД и архив медиа (Git LFS), schema_embeddings.sql
 ├── imports/                   # входные данные: inbox/ (архивы), staging/<batch_id>/, images/
 ├── media/                     # записываемое хранилище медиа товаров (не в Git)
 ├── tmp/1, tmp/2               # тестовые наборы для оценки (mapping.json, eval.sh)
@@ -102,7 +111,7 @@ lct2026prod/
 | Модуль | Назначение |
 |---|---|
 | `images.py` | Декодирует загрузки с проверкой размера и числа пикселей, делает crop и canonical resize. Атомарно сохраняет `source.webp`/`label.webp` в `media/products/<uuid>/`. |
-| `detector.py` | YOLO bbox-детектор этикетки (`models/yolo_label.pt`). |
+| `detector.py` | YOLO bbox-детектор этикетки (`models/yolo_label.pt`). Из нескольких рамок выбирает этикетку на вертикали через центр кадра, а не самую уверенную: боковые этикетки соседних бутылок отбрасываются. |
 | `segmenter.py` | YOLO-сегментация: полигон маски этикетки (`models/yolo_seg.pt`). |
 | `rectification.py` | Выпрямление перспективы и «развёртка» цилиндрической этикетки (используется в v2). |
 | `query_prep_v3.py` | Подготовка запроса: сегментация, кроп, letterbox 518×518 (`letterbox_pil`). Используется в v1, v3, v4 и каскаде. |
@@ -134,7 +143,7 @@ lct2026prod/
 | products | `GET/POST /api/products`, `GET /api/products/{id}`, `GET /api/media/{path}` |
 | imports | `POST /api/imports` (batch_id + manifest → 202), `GET /api/imports/{job_id}` |
 | search v1–v4 | `POST /api/vN/search`, `/api/vN/search-from-crop`, `/api/vN/eval/predict` |
-| cascade | `POST /api/cascade/search`, `/search-from-crop`, `/predict` — в ответе `status` (`found` / `probable` / `not_in_catalog`); для «нет в каталоге» `slug = null` |
+| cascade | `POST /api/cascade/search`, `/search-from-crop`, `/predict` (синоним `/eval/predict`) — в ответе `status` (`found` / `probable` / `not_in_catalog`); для «нет в каталоге» `slug = null`. `GET /api/cascade/thresholds` — действующие пороги зон (их читает сканер) |
 | twins | `GET /api/twins/clusters` — группы похожих этикеток (union-find по близости векторов) |
 | sommelier | `POST /api/sommelier/ask`, `POST /api/sommelier/reset`, `GET /api/sommelier/wine/{slug}?dish=`, `GET /api/sommelier/wine/{slug}/alternatives` — похожие по стилю вина к распознанному |
 
@@ -144,7 +153,7 @@ lct2026prod/
 
 `router.py` отдаёт HTML-страницы:
 
-- `/` — редирект на главную;
+- `/` — редирект на основной сканер `/mobi/`;
 - `/products` и `/products/{id}` — каталог;
 - `/add` — добавление товара;
 - `/import` — пакетный импорт;
@@ -152,25 +161,25 @@ lct2026prod/
 - `/mobi-cascade` — мобильный сканер каскада;
 - `/twins` — похожие этикетки.
 
-`detect_router.py` (`/detect-test`) и `rectify_router.py` (`/rectify-test`) — отладочные стенды детекции и ректификации.
+`detect_router.py` (`/detect-test`, API `/api/detect/*`) и `rectify_router.py` (`/rectify-test`, API `/api/rectify/*`) — отладочные стенды детекции и ректификации. Их роуты подключаются в `app/main.py` напрямую, а не через `app/api/router.py`.
 
 ### 2.7 `app/sommelier` — AI-сомелье
 
-Работает детерминированно, без БД и GPU. Каталог собирается из `data/wines_integrated.csv` при старте API.
+Подбор работает детерминированно, без БД и GPU. Каталог собирается из `data/wines_integrated.csv` при старте API. БД нужна только эндпоинту `/alternatives`, чтобы приложить картинки этикеток.
 
 - `catalog.py` — загрузка CSV, сборка каталога;
 - `features.py` — признаки вина только из полей базы, с цитатами-доказательствами;
 - `dishes.py` — профиль блюда по вкусовым осям;
 - `context.py` — разбор свободного текста;
 - `engine.py` — фильтры, скоринг и диверсификация;
-- `explain.py` — объяснения для гостя;
+- `explain.py` — объяснения для гостя и данные инфографики сочетания вина с блюдом;
 - `guardrails.py` — этические ограничения;
 - `sommelier.py` — оркестратор диалога;
-- `llm.py` — необязательный LLM-слой: нужны пакет `anthropic` и `ANTHROPIC_API_KEY`, без них ответы строятся по шаблонам.
+- `llm.py` — необязательный LLM-слой на Google Gemini (REST через стандартную библиотеку, без доп. пакетов). Включается ключом `GOOGLE_API_KEY`. LLM только переформулирует ответ движка: каждый ответ проверяется (названы все выбранные вина, нет побуждений и цен), при ошибке или нарушении возвращается шаблонный текст. Без ключа ответы строятся по шаблонам. Алгоритм — `docs/SOMMELIER_ALGORITHM.md`.
 
 ### 2.8 Клиенты
 
-- `web/` — мобильный клиент камеры (`/mobi/`), настройки в `config.js`.
+- `web/` — основной сканер «Своё Вино» (`/mobi/`): фото → `/api/cascade/search` → ответ «найдено» / «похоже» / «нет в каталоге», карточка вина, похожие вина, сочетание с блюдом и чат сомелье. Рамку прицела рисует YOLO в браузере (`web/models/yolov8_label.onnx`). Та же папка публикуется на GitHub Pages (`pages.yml`); адрес API передаётся в ссылке `?api=https://…` или задаётся в настройках, по умолчанию берётся из `config.js`. Такие origin должны быть перечислены в `CORS_ORIGINS`. `add.html` — добавление товара (на публичном входе закрыто).
 - `export/` — автономный мобильный сканер каскада: `mobitest_cascade.html`, YOLO в браузере через ONNX Runtime (`models/yolov8_label.onnx`, `vendor/ort.all.min.js`). Адрес backend задаётся в `export/config.js` (`MOBI_API_BASE`).
 
 ### 2.9 `scripts/` — утилиты
@@ -180,8 +189,9 @@ lct2026prod/
 | Каталог | `ingest_cascade_catalog.py` (**основной**: CSV + фото → v1 и v4 эмбеддинги, по 116 на товар), `import_from_csv.py`, `download_images.py`, `list_missing_catalog_images.py`, `prepare_dataset_import.sh`, `clear_database.py` |
 | Эмбеддинги (legacy) | `build_embeddings_v2.py`, `build_embeddings_v3.py`, `build_embeddings_v4.py` |
 | Обучение | `build_dataset_v3.py`, `build_dataset_v4.py`, `train_dino_v3.py`, `train_siglip_v4.py` (+ `train/losses.py`) |
-| Оценка | `eval_recognition.py` (**основной**: точность и зоны ответа через API по `mapping.json` / `labels.tsv`), `research_dump_features.py` + `calibrate_cascade.py` (калибровка порогов без GPU), `audit_catalog.py` (дубли этикеток в каталоге), `run_benchmark.py`, `eval_results.py`, `eval_perspective_frame.py`, `md/participant_test.sh` |
+| Оценка | `eval_recognition.py` (**основной**: точность и зоны ответа через API по `mapping.json` / `labels.tsv`), `build_review_page.py` (страница ручной разметки фото → `labels.tsv`), `research_dump_features.py` + `calibrate_cascade.py` (калибровка порогов без GPU), `audit_catalog.py` (дубли этикеток в каталоге), `audit_label_crops.py` (какую рамку этикетки выбирает детектор), `run_benchmark.py`, `eval_results.py`, `eval_perspective_frame.py`, `md/participant_test.sh` |
 | Данные и модели | `restore_production_data.sh`, `export_production_data.sh`, `stage_production_models.sh`, `collect_model_inventory.sh` |
+| Публичный вход | `public_url.sh` — печатает текущие HTTPS-ссылки туннеля |
 | Сомелье | `sommelier_cli.py` — диалог в консоли без HTTP |
 
 ### 2.10 Модели (`models/`)
@@ -191,10 +201,12 @@ lct2026prod/
 | `yolo_label.pt` | Детектор bbox этикетки |
 | `yolo_seg.pt` | Сегментация этикетки |
 | `dinov2-small/` + `dinov2_label_finetuned/` | База и LoRA-адаптер v1 (384d) |
-| `siglip2-base-patch16-512/` + `siglip2_v4_finetuned/` | База и LoRA-адаптер v4 (768d) |
+| `siglip2-base-patch16-512/` + `siglip2_v4_finetuned/` | База и LoRA-адаптер v4 (768d). В Git только конфиги базы, без весов (см. ниже) |
 | `MODEL_MANIFEST.sha256` | Контрольные суммы весов |
 
 Во время работы модели только читаются, в контейнере они смонтированы как `/models:ro`.
+
+Веса базовой модели SigLIP 2 (`google/siglip2-base-patch16-512`, 1,5 ГБ) в Git не хранятся. При первом старте API скачивает их с huggingface.co в `media/.cache/huggingface` (`HF_HOME` в `compose.yaml`). Без интернета положите `model.safetensors` в `models/siglip2-base-patch16-512/`. Если SigLIP 2 не загрузился, каскад работает только на DINOv2 и отвечает «похоже».
 
 ---
 
@@ -217,12 +229,14 @@ lct2026prod/
 | `MEDIA_DIR`, `IMPORT_STAGING_DIR` | Пути к медиа и staging импорта (в контейнере `/media`, `/imports/staging`) |
 | `DINO_MODEL_PATH`, `DINO_BASE_MODEL_PATH`, `YOLO_MODEL_PATH` | Пути к моделям v1 (в контейнере `/models/...`) |
 | `SIGLIP_V4_MODEL_PATH`, `SIGLIP_V4_BASE_MODEL_PATH`, `YOLO_SEG_MODEL_PATH` | Пути к моделям v4 и сегментации. Если не заданы, ищутся автоматически. |
-| `CORS_ORIGINS` | Разрешённые origin через запятую. Пусто, если web и `/api/` отдаются с одного адреса. |
+| `CORS_ORIGINS` | Разрешённые origin через запятую. В шаблоне — копии сканера на GitHub Pages. Пусто, если web и `/api/` отдаются с одного адреса. |
+| `PUBLIC_PORT` | Порт публичного nginx-входа (по умолчанию `8031`) |
 | `MAX_UPLOAD_BYTES`, `MAX_IMAGE_PIXELS`, `MAX_TOP_K` | Лимиты входных изображений и выдачи |
 | `CANDIDATE_POOL_SIZE`, `GPU_CONCURRENCY`, `SIFT_CONCURRENCY` | Производительность. При GPU OOM уменьшите `GPU_CONCURRENCY`. |
 | `CASCADE_CANDIDATE_POOL`, `CASCADE_V1_WEIGHT`, `CASCADE_FOUND_MIN_SIMILARITY`, `CASCADE_FOUND_MIN_MARGIN`, `CASCADE_REJECT_BELOW_SIMILARITY`, `CASCADE_PREDICT_THRESHOLD` | Каскад: число кандидатов, вес DINOv2, пороги зон «найдено» и «нет в каталоге» (`docs/SEARCH_CASCADE_API.md`) |
 | `ENABLE_OCR_RERANK_V4`, `OCR_RERANK_WEIGHT_*` | OCR-реранкер отдельного пайплайна v4 (каскад OCR не использует) |
 | `SOMMELIER_MAX_SESSIONS`, `SOMMELIER_SESSION_TTL_SECONDS` | Сессии сомелье |
+| `GOOGLE_API_KEY`, `SOMMELIER_LLM_MODEL`, `SOMMELIER_LLM_TIMEOUT_SECONDS` | LLM-слой сомелье (Gemini, по умолчанию `gemini-flash-latest`, таймаут 20 с). Пустой ключ — только шаблоны |
 | `LOG_LEVEL` | Уровень логов |
 
 Полный список с значениями по умолчанию — `app/core/config.py`. Имя переменной — это имя поля `Settings` в верхнем регистре.
@@ -259,6 +273,8 @@ chmod +x scripts/*.sh
 docker compose up -d --build               # db → migrate (alembic upgrade head) → api
 ```
 
+При первом старте API нужен доступ к huggingface.co (веса базы SigLIP 2, раздел 2.10).
+
 Проверка:
 
 ```bash
@@ -269,8 +285,9 @@ curl -fsS http://127.0.0.1:8080/api/ready
 
 Веб-интерфейсы:
 
-- `http://<host>:8080/search-cascade` — основной сканер;
-- `http://<host>:8080/mobi-cascade` и `http://<host>:8080/mobi/` — мобильные сканеры;
+- `http://<host>:8080/` → `http://<host>:8080/mobi/` — основной сканер «Своё Вино»;
+- `http://<host>:8080/search-cascade` — каскадный поиск с диагностикой шагов;
+- `http://<host>:8080/mobi-cascade` — мобильный сканер каскада (Jinja);
 - `http://<host>:8080/products` — каталог;
 - `http://<host>:8080/api/docs` — Swagger.
 
@@ -291,7 +308,7 @@ alembic upgrade head
 uvicorn app.main:app --host 127.0.0.1 --port 8080 --reload
 ```
 
-Откройте `http://localhost:8080/`. Без GPU модели работают на CPU, поиск будет медленнее. Если БД пустая, загрузите каталог (раздел 4.3) или восстановите дамп.
+Откройте `http://localhost:8080/` — откроется сканер `/mobi/`. Без GPU модели работают на CPU, поиск будет медленнее. Если БД пустая, загрузите каталог (раздел 4.3) или восстановите дамп.
 
 ### 4.3 Загрузка каталога
 
@@ -326,6 +343,16 @@ docker compose run --rm migrate alembic current
 
 БД и `media/` резервируются вместе: если восстановить только одно из них, ссылки на изображения будут битыми. Подробнее — `docs/RUNBOOK.md`, `md/SERVER_COMMANDS.md`.
 
+### 4.5 Публичный вход для тестов по ссылке
+
+```bash
+docker compose --profile public up -d       # nginx :8031 + туннель localhost.run (*.lhr.life)
+docker compose --profile cloudflare up -d   # вариант с Cloudflare Tunnel (*.trycloudflare.com)
+bash scripts/public_url.sh                  # текущие ссылки: сканер, каскад, API, Swagger
+```
+
+Через этот вход доступны только сканер, распознавание (`/api/cascade/`), сомелье и чтение каталога (`deploy/public/nginx.conf`). Изменение каталога (`/add`, `/import`, `POST /api/products`, `/api/imports`) остаётся на приватном порту `8080`. HTTPS нужен, чтобы камера работала на телефонах. Адрес туннеля меняется после переподключения.
+
 ---
 
 ## 5. Тестирование
@@ -344,6 +371,8 @@ pytest
 | `test_search_cascade.py` | Зоны ответа, ранжирование слиянием, «нет в каталоге», режим без SigLIP 2, прогрев |
 | `test_search_v4.py` | Пайплайн v4 и OCR-реранкер |
 | `test_reranking.py`, `test_rectification.py`, `test_images.py` | SIFT, ректификация, валидация изображений |
+| `test_detector.py` | Выбор рамки этикетки на вертикали через центр кадра |
+| `test_product_ingestion.py` | Новый товар получает векторы обеих моделей каскада; без SigLIP 2 — только DINOv2; дубль slug отклоняется |
 | `test_batch_import.py`, `test_repository.py`, `test_models.py` | Импорт, репозиторий, ORM-модели |
 | `test_sommelier.py`, `test_sommelier_service.py` | Движок, альтернативы и сервис сомелье (без БД и GPU) |
 
@@ -354,7 +383,7 @@ alembic upgrade head
 alembic check
 ```
 
-CI (`.github/workflows/ci.yml`) на каждый push запускает PostgreSQL pgvector, затем `alembic upgrade head`, `alembic check`, `ruff`, `pytest` и `docker build`.
+CI (`.github/workflows/ci.yml`) на каждый push запускает PostgreSQL pgvector, затем `alembic upgrade head`, `alembic check`, `ruff`, `pytest` и `docker build`. `pages.yml` при изменении `web/` в ветках `main` и `anna_cascade` публикует сканер на GitHub Pages.
 
 ### 5.2 Оценка качества распознавания (нужен запущенный сервер с каталогом)
 
