@@ -9,6 +9,9 @@
 
 Роуты не версионируются (как `products`/`health`) — сомелье не часть search-пайплайна.
 
+Подбор «блюдо → сорт → бутылка» по справочнику сортов `vine_tastes.csv`, каталог бутылок через `CatalogProvider` (каталог сканера / демо / ритейлер),
+только российские вина, аналоги зарубежных вин и сценарии С1–С5 — в [`SOMMELIER_PAIRING.md`](SOMMELIER_PAIRING.md) (`/api/sommelier/pairing/*`, `analog`, `similar`, `grapes`, `dishes`, `health`).
+
 ## Диалог: `POST /api/sommelier/ask`
 
 ```bash

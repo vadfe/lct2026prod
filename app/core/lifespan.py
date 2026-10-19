@@ -23,7 +23,11 @@ from app.services.rectification import RectificationService
 from app.services.segmenter import SegmenterService
 from app.services.siglip_embeddings import SigLIP2EmbeddingService
 from app.services.sommelier_service import SommelierService
+from app.services.twin_resolver import TwinResolver
 from app.sommelier.llm import GeminiLLM
+from app.sommelier.pairing import build_pairing_service
+from app.sommelier.pairing.catalog import RetailConfig
+from app.sommelier.pairing.llm_layer import make_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,7 @@ async def lifespan(app: FastAPI):
     app.state.batch_import = None
     app.state.import_tasks = set()
     app.state.sommelier = None
+    app.state.sommelier_pairing = None
     try:
         sommelier_llm = None
         if settings.google_api_key and settings.google_api_key.get_secret_value():
@@ -64,6 +69,22 @@ async def lifespan(app: FastAPI):
                     settings.sommelier_llm_model if sommelier_llm else "off (templates only)")
     except Exception:
         logger.exception("Sommelier service failed to load")
+    try:
+        # Подбор «блюдо → сорт → бутылка»: slug, которого нет в каталоге бутылок, ищется в базе распознавания этикеток
+        recognition = {w["id"]: w for w in app.state.sommelier.wines}.get if app.state.sommelier is not None else None
+        api_key = settings.google_api_key.get_secret_value() if settings.google_api_key else None
+        pairing_llm = make_llm_client(settings.sommelier_llm_provider, api_key, settings.sommelier_llm_model, settings.sommelier_llm_timeout_seconds)
+        retail = RetailConfig(kind=settings.retail_source_kind, url=settings.retail_source_url, schedule=settings.retail_refresh_cron,
+                              api_key=settings.retail_api_key.get_secret_value() if settings.retail_api_key else "")
+        service_wines = app.state.sommelier.wines if app.state.sommelier is not None else None
+        app.state.sommelier_pairing = await asyncio.to_thread(
+            build_pairing_service, settings.catalog_source, pairing_llm, str(settings.resolved_sommelier_llm_log_path), recognition,
+            retail, None, service_wines,
+        )
+        logger.info("Sommelier pairing loaded: catalog=%s (Russian wines only), LLM=%s", settings.catalog_source,
+                    pairing_llm.name if pairing_llm else "off (templates)")
+    except Exception:
+        logger.exception("Sommelier pairing failed to load")
     try:
         detector, embeddings = await asyncio.gather(
             asyncio.to_thread(DetectorService, settings.yolo_model_path, settings.yolo_confidence),
@@ -200,6 +221,11 @@ async def lifespan(app: FastAPI):
                 v1_weight=settings.cascade_v1_weight,
                 predict_threshold=settings.cascade_predict_threshold,
                 target_size=settings.canonical_size_v4,
+                images=images,
+                twin_resolver=TwinResolver(frame_size=settings.canonical_size_v4) if settings.enable_cascade_twin_resolver else None,
+                twin_semaphore=asyncio.Semaphore(settings.sift_concurrency),
+                twin_max_gap=settings.cascade_twin_max_gap,
+                twin_pool=settings.cascade_twin_pool,
             )
             await asyncio.to_thread(app.state.pipeline_cascade.warm_up)
             if p4 is not None:

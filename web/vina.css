@@ -840,22 +840,6 @@ button:disabled { opacity: .5; cursor: default; }
 .status-banner.found .status-title { color: #1f7a45; }
 .status-banner.probable .status-title { color: #a86b12; }
 .status-banner.not_in_catalog .status-title { color: var(--primary); }
-.status-reason { font-size: 13px; color: var(--text-secondary); margin-top: 6px; line-height: 1.45; }
-.status-meta { font-size: 12px; color: var(--text-secondary); margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.status-meta b { color: var(--text-main); font-weight: 600; }
-
-.thresholds {
-    font-size: 12px;
-    color: var(--text-secondary);
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin-top: 12px;
-    line-height: 1.5;
-    box-shadow: var(--shadow);
-}
-.thresholds summary { cursor: pointer; font-weight: 600; color: var(--text-main); }
-.thresholds ul { margin: 6px 0 0 16px; }
 
 .section-card {
     background: var(--card-bg);
@@ -1042,10 +1026,12 @@ button:disabled { opacity: .5; cursor: default; }
     padding: 14px 16px; border-radius: 14px;
     background: linear-gradient(135deg, var(--pr-a), var(--pr-b));
 }
-.level-great { --pr-color: #1f8a4c; --pr-a: #e3f4e9; --pr-b: #f3faf0; }
-.level-good  { --pr-color: #4d8f2a; --pr-a: #edf5e1; --pr-b: #f8fbef; }
-.level-ok    { --pr-color: #b7791f; --pr-a: #fbf1dd; --pr-b: #fffaf0; }
-.level-poor  { --pr-color: var(--primary); --pr-a: #f8e3e8; --pr-b: #fdf3f1; }
+/* Уровни сочетания — приглушённые тона в палитре vino-svoe.ru: шалфей, фисташка, мёд, пыльная роза.
+   --pr-color — обводка и акцент, --pr-ink — текст того же тона, --pr-a / --pr-b — подложки */
+.level-great { --pr-color: #8fb48a; --pr-ink: #4f7a4b; --pr-a: #edf3e9; --pr-b: #f6f9f3; }
+.level-good  { --pr-color: #b9c98c; --pr-ink: #6b7a3c; --pr-a: #f2f5e6; --pr-b: #f9faf2; }
+.level-ok    { --pr-color: #e2b97f; --pr-ink: #96692c; --pr-a: #fbf2e3; --pr-b: #fdf9f1; }
+.level-poor  { --pr-color: #cf8f88; --pr-ink: #9a4f4c; --pr-a: #f9ecea; --pr-b: #fcf6f5; }
 
 .pr-ring { width: 76px; height: 76px; flex-shrink: 0; }
 .pr-ring-bg { fill: #fff; stroke: rgba(0,0,0,.08); stroke-width: 8; }
@@ -1159,13 +1145,17 @@ button:disabled { opacity: .5; cursor: default; }
     font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
     color: var(--rc-accent); background: color-mix(in srgb, var(--rc-accent) 10%, #fff);
 }
-.rc-name { font-size: 16px; font-weight: 700; line-height: 1.3; color: var(--text-main); overflow-wrap: anywhere; }
+.rc-name { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; font-weight: 600; line-height: 1.25; color: #2c2a28; overflow-wrap: anywhere; }
 .rc-winery { font-size: 12px; color: var(--text-secondary); }
 .rc-body .wd-chips { margin-top: 2px; }
 .rc-match { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
 .rc-match-label { font-size: 11px; color: var(--text-secondary); }
 .rc-match .pr-meter { flex: 1; width: auto; }
-.rc-match .pr-meter-fill { background: var(--rc-accent); }
+.rc-match .pr-meter { height: 8px; background: #f1ece7; }
+.rc-match .pr-meter-fill {
+    background-image: linear-gradient(90deg, #cf8f88 0%, #e4ad7f 28%, #e2c77f 52%, #b9c98c 76%, #8fb48a 100%);
+    background-repeat: no-repeat;
+}
 .rc-match b { font-size: 13px; color: var(--text-main); }
 
 .rc-reasons { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
@@ -1175,8 +1165,8 @@ button:disabled { opacity: .5; cursor: default; }
     display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 800; color: #fff;
 }
-.rc-reason.plus::before  { content: "✓"; background: #3d9a5a; }
-.rc-reason.minus::before { content: "!"; background: #b7791f; }
+.rc-reason.plus::before  { content: "✓"; background: #8fb48a; }
+.rc-reason.minus::before { content: "!"; background: #e2b97f; }
 .rc-card .pr-unknown { margin-top: 10px; padding: 0; }
 .rc-quote { margin: 10px 0 0; padding-left: 10px; border-left: 3px solid #ececf0; }
 .rc-link { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--primary); text-decoration: none; }
@@ -1221,3 +1211,204 @@ button:disabled { opacity: .5; cursor: default; }
 .ab-foods { margin: 0 0 10px; }
 .ab-hint { display: block; margin-bottom: 8px; }
 .ab-tiles .wd-fact:last-child:nth-child(odd) { grid-column: span 2; }
+
+/* ---------- Подбор «блюдо → сорт → бутылка» ---------- */
+.pairing-section { margin: 16px 0; }
+.pairing-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.pairing-filters select, .pairing-filters input[type="number"] {
+    flex: 1 1 130px; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font: inherit; font-size: 14px; background: #fff;
+}
+.pc-foreign { margin: 8px 0; padding: 10px 12px; background: #f7f7f8; border-radius: 10px; }
+.demo-badge {
+    display: inline-block; margin: 10px 0 6px; padding: 4px 10px; border-radius: 6px; background: #fff4d6; color: #7a5a00;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.2px;
+}
+.pc-dish { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 8px 0; font-size: 15px; }
+.pc-estimate { font-size: 12px; color: var(--text-secondary); background: #f1f3f5; padding: 2px 8px; border-radius: 6px; }
+.pc-card { border: 1px solid #eee; border-radius: 12px; padding: 12px 14px; margin: 10px 0; background: var(--card-bg); }
+.pc-card.russian { border-left: 4px solid var(--primary); }
+.pc-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.pc-role { font-size: 12px; font-weight: 600; color: var(--primary); }
+.pc-ru { font-size: 11px; font-weight: 700; color: #fff; background: var(--primary); padding: 1px 8px; border-radius: 10px; }
+.pc-name { font-size: 16px; font-weight: 600; color: var(--text-main); }
+.pc-meta { font-size: 13px; color: var(--text-secondary); margin: 2px 0 6px; }
+.pc-facts { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; font-size: 14px; }
+.pc-score { margin-left: auto; font-size: 12px; color: var(--text-secondary); }
+.pc-text { font-size: 14px; line-height: 1.45; margin: 8px 0 4px; }
+.pc-note { font-size: 12px; color: #7a5a00; margin-top: 4px; }
+.pc-why { margin-top: 6px; font-size: 13px; }
+.pc-why summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+.pc-rule { margin: 6px 0; line-height: 1.45; }
+.pc-factors { margin: 4px 0 0; padding-left: 18px; }
+.pc-factors li.plus { color: #2f7d32; }
+.pc-factors li.minus { color: #a32020; }
+.pc-factors li.neutral { color: var(--text-secondary); }
+.pc-bridge { font-size: 14px; font-style: italic; margin: 8px 0; }
+.pc-dishes { display: grid; gap: 6px; margin: 6px 0 8px; }
+.pc-dish-row { display: flex; justify-content: space-between; padding: 6px 10px; background: #f7f7f8; border-radius: 8px; font-size: 14px; }
+.pc-versions { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+
+/* ---------- Подбор «блюдо → вино»: в стиле vino-svoe.ru — молочный фон, приглушённый бордовый, Playfair Display ---------- */
+.level-none { --pr-color: #d7d4d2; --pr-ink: #857e79; --pr-a: #f4f1ee; --pr-b: #faf8f6; }
+.pairing-graphic { gap: 14px; }
+
+.pc2-dish {
+    padding: 18px 16px 16px; border-radius: 20px;
+    background: linear-gradient(165deg, #f9f1f1 0%, #fefdfa 70%);
+    border: 1px solid #edd4d6;
+}
+.pc2-dish-kicker { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #8f3d42; }
+.pc2-dish-name {
+    font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 600;
+    color: #2c2a28; margin-top: 4px; line-height: 1.2;
+}
+.pc2-dish .wd-chips { margin-top: 8px; }
+.pc2-dish-name::first-letter { text-transform: uppercase; }
+
+/* Шкалы-грозди: веточка с листиком и ягоды, спелые — цветом своего места на шкале */
+.gb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; margin-top: 14px; }
+.gb-grid.wine { grid-template-columns: repeat(3, 1fr); gap: 10px 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed #ebe5df; }
+.gb-row { min-width: 0; }
+.gb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+.gb-label { font-size: 11px; color: #857e79; }
+.gb-word { font-size: 11px; font-weight: 600; color: #2c2a28; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gb-track { position: relative; display: flex; align-items: center; height: 18px; padding-bottom: 2px; }
+.gb-sprig { width: 15px; height: 15px; flex-shrink: 0; margin-right: 1px; overflow: visible; }
+.gb-stem { fill: none; stroke: #9a8c74; stroke-width: 1.3; stroke-linecap: round; }
+.gb-leaf { fill: #b9c98c; stroke: #8fa36a; stroke-width: .6; }
+.gb-berry {
+    position: relative; flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%;
+    margin-left: -2px;
+    background:
+        radial-gradient(circle at 34% 30%, rgba(255,255,255,.75) 0 14%, rgba(255,255,255,0) 30%),
+        radial-gradient(circle at 50% 50%, #f3eee9 55%, #e6dfd8 100%);
+    box-shadow: inset 0 -1px 2px rgba(44,42,40,.08), 0 0 0 1.5px #fefdfa;
+}
+.gb-berry:nth-of-type(even) { transform: translateY(2px); }
+.gb-berry.on {
+    background:
+        radial-gradient(circle at 34% 30%, rgba(255,255,255,.7) 0 13%, rgba(255,255,255,0) 30%),
+        radial-gradient(circle at 60% 70%, color-mix(in srgb, var(--berry) 78%, #5a3b2e) 0%, var(--berry) 62%);
+    box-shadow: inset 0 -2px 3px rgba(44,42,40,.14), 0 0 0 1.5px #fefdfa;
+}
+.gb-berry.half {
+    background:
+        radial-gradient(circle at 34% 30%, rgba(255,255,255,.7) 0 13%, rgba(255,255,255,0) 30%),
+        linear-gradient(90deg, var(--berry) 50%, #ece5de 50%);
+}
+.gb-berry.marked::after {
+    content: ""; position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid #8f3d42;
+}
+.gb-berry.marked:nth-of-type(even)::after { top: 16px; }
+.gb-grid.wine .gb-row { padding-bottom: 6px; }
+.gb-legend { margin-top: 2px; font-size: 10px; color: #9a948f; text-align: right; }
+.gb-legend-mark { color: #8f3d42; }
+
+/* Карточка вина */
+.pc2-card {
+    position: relative; padding: 16px; border-radius: 20px; background: #fff;
+    border: 1px solid #ebe9e9; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(44,42,40,.06), inset 0 3px 0 var(--pr-color);
+}
+.pc2-card.best { border-color: #edd4d6; box-shadow: 0 12px 34px rgba(143,61,66,.10), inset 0 3px 0 var(--pr-color); }
+.pc2-card .rc-media { width: 66px; height: 118px; border-radius: 14px; }
+.pc2-card .rc-media.tone-red   { background: linear-gradient(165deg, #f9f1f1, #fefdfa); }
+.pc2-card .rc-media.tone-white { background: linear-gradient(165deg, #faf5e6, #fefdfa); }
+.pc2-card .rc-media.tone-rose  { background: linear-gradient(165deg, #fbeff0, #fefdfa); }
+.pc2-card .rc-name { font-family: 'Playfair Display', Georgia, serif; font-size: 19px; font-weight: 600; color: #2c2a28; line-height: 1.22; }
+.pc2-card .rc-winery { color: #857e79; }
+.pc2-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pc2-role {
+    padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: #857e79; background: #f4f1ee;
+}
+.pc2-card.best .pc2-role { color: #8f3d42; background: #f9f1f1; }
+.pc2-card .pc-ru { color: #8f3d42; background: transparent; border: 1px solid #e0b8ba; font-weight: 600; padding: 1px 8px; }
+.pc2-card .wd-chip, .pc2-dish .wd-chip { color: #423f3c; background: #faf7f4; border-color: #ebe5df; font-weight: 500; }
+
+.pc2-score { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.pc2-score .pr-ring { width: 58px; height: 58px; }
+.pc2-score .pr-ring-bg { fill: var(--pr-b); stroke: #f1ece7; }
+.pc2-score .pr-ring-text { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; fill: #2c2a28; }
+.pc2-score-word { font-size: 11px; font-weight: 600; color: var(--pr-ink); }
+
+.pc2-card .rc-reasons { margin-top: 12px; gap: 7px; }
+.pc2-card .rc-reason { color: #423f3c; }
+.pc2-card .rc-reason.plus::before  { background: #8fb48a; }
+.pc2-card .rc-reason.minus::before { background: #e2b97f; }
+.pc2-card .pc-why { margin-top: 12px; }
+.pc2-card .pc-why summary { color: #857e79; font-weight: 500; }
+.pc2-card .pc-rule { color: #423f3c; }
+.pc2-card .rc-link { color: #8f3d42; font-weight: 600; }
+.pc2-factors { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.pc2-factor { display: flex; gap: 8px; align-items: baseline; font-size: 12px; line-height: 1.4; color: #423f3c; }
+.pc2-factor b { min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.pc2-factor.plus b  { color: #4f7a4b; }
+.pc2-factor.minus b { color: #96692c; }
+
+/* Сорта к блюду */
+.pc2-grapes { background: #fff; border: 1px solid #ebe9e9; border-radius: 20px; }
+.pc2-grapes .pr-group-title { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; font-weight: 600; color: #2c2a28; text-transform: none; letter-spacing: 0; }
+.pc2-grape-row { display: flex; flex-direction: column; gap: 6px; }
+.pc2-grape-row + .pc2-grape-row { margin-top: 12px; }
+.pc2-grape-title { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.pc2-grape-title.fit   { color: #4f7a4b; }
+.pc2-grape-title.avoid { color: #9a4f4c; }
+.pc2-grape-row .wd-chips { margin-top: 0; }
+.wd-chip.pc2-grape { display: inline-flex; gap: 7px; align-items: center; color: var(--pr-ink); background: var(--pr-a); border-color: transparent; }
+.wd-chip.pc2-grape::before {
+    content: ""; width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.7) 0 15%, var(--pr-color) 35%);
+}
+.wd-chip.pc2-grape b { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 380px) {
+    .gb-grid.wine { grid-template-columns: 1fr 1fr; }
+    .pc2-card .rc-media { width: 54px; height: 98px; }
+}
+
+/* Прогресс-бар «Совпадение» — общий для подбора к блюду и чата сомелье */
+.mm { margin-top: 14px; padding: 10px 12px 12px; border-radius: 14px; background: var(--pr-b); border: 1px solid color-mix(in srgb, var(--pr-color) 22%, #fff); }
+.mm-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.mm-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #857e79; }
+.mm-value { display: flex; align-items: baseline; gap: 6px; }
+.mm-value b { font-family: 'Playfair Display', Georgia, serif; font-size: 20px; font-weight: 600; color: #2c2a28; line-height: 1; }
+.mm-word { font-size: 12px; font-weight: 600; color: var(--pr-ink); }
+.mm-track {
+    position: relative; height: 10px; border-radius: 999px; background: #efe9e3;
+    box-shadow: inset 0 1px 2px rgba(44,42,40,.10);
+}
+.mm-track::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgba(254,253,250,.9) calc(25% - 1px) 25%);
+}
+.mm-fill {
+    display: block; height: 100%; border-radius: inherit;
+    background-image: linear-gradient(90deg, #cf8f88 0%, #e4ad7f 28%, #e2c77f 52%, #b9c98c 76%, #8fb48a 100%);
+    background-repeat: no-repeat;
+    animation: mm-grow .8s cubic-bezier(.2,.7,.2,1) both;
+}
+.mm-knob {
+    position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; z-index: 1;
+    transform: translate(-50%, -50%);
+    background:
+        radial-gradient(circle at 34% 30%, rgba(255,255,255,.75) 0 14%, rgba(255,255,255,0) 32%),
+        radial-gradient(circle at 60% 70%, color-mix(in srgb, var(--berry) 75%, #5a3b2e) 0%, var(--berry) 62%);
+    box-shadow: 0 0 0 2.5px #fff, 0 2px 6px rgba(44,42,40,.22);
+    animation: mm-slide .8s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes mm-grow { from { width: 0; } }
+@keyframes mm-slide { from { left: 0; } }
+@media (prefers-reduced-motion: reduce) { .mm-fill, .mm-knob { animation: none; } }
+
+.pc2-num {
+    position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', Georgia, serif; font-size: 13px; font-weight: 600;
+    color: #fff; background: #8f3d42; box-shadow: 0 0 0 2px #fff;
+}
+.pc2-dish .rc-pool { margin-top: 10px; color: #857e79; }
+.pc2-grape-title.maybe { color: #96692c; }
+.pc2-card .pr-unknown { margin-top: 10px; padding: 0; }
+.pc2-card .rc-quote { margin-top: 10px; padding-left: 10px; border-left: 3px solid #edd4d6; color: #5d5753; font-style: italic; }

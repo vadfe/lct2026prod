@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -61,6 +62,10 @@ class Settings(BaseSettings):
     cascade_found_min_margin: float = Field(0.15, ge=0.0, le=4.0)
     cascade_reject_below_similarity: float = Field(0.55, ge=0.0, le=1.0)
     cascade_predict_threshold: float | None = Field(None, ge=0.0, le=1.0)
+    # Twin stage: same-producer candidates within this fusion gap are reordered by the regions where their labels differ
+    enable_cascade_twin_resolver: bool = True
+    cascade_twin_max_gap: float = Field(0.15, ge=0.0, le=4.0)
+    cascade_twin_pool: int = Field(3, ge=2, le=10)
 
     @model_validator(mode="after")
     def check_cascade_zones(self) -> "Settings":
@@ -76,6 +81,14 @@ class Settings(BaseSettings):
     google_api_key: SecretStr | None = None
     sommelier_llm_model: str = "gemini-flash-latest"
     sommelier_llm_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    # Подбор «блюдо → сорт → бутылка» (docs/SOMMELIER_PAIRING.md): источник бутылок и LLM-провайдер.
+    # Рекомендуются только российские вина каталога; service — каталог сканера (sommelier_csv_path)
+    catalog_source: Literal["service", "demo", "retail"] = "service"
+    retail_source_kind: Literal["csv", "api"] = "csv"
+    retail_source_url: str = ""
+    retail_api_key: SecretStr | None = None
+    retail_refresh_cron: str = "0 5 * * *"
+    sommelier_llm_provider: Literal["gemini", "none"] = "gemini"
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -186,6 +199,11 @@ class Settings(BaseSettings):
     def resolved_sommelier_feedback_path(self) -> Path:
         """Пишем фидбек сомелье в media_dir: app/ в проде смонтирован read-only, media — единственный writable путь."""
         return self.media_dir / "sommelier" / "feedback.jsonl"
+
+    @property
+    def resolved_sommelier_llm_log_path(self) -> Path:
+        """Журнал промптов и ответов LLM подбора (ТЗ п. 5.3) — тоже в media_dir, без данных о личности."""
+        return self.media_dir / "sommelier" / "pairing_llm_log.jsonl"
 
 
 @lru_cache

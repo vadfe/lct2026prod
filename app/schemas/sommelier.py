@@ -1,6 +1,6 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 SESSION_ID_PATTERN = r"^[A-Za-z0-9_-]+$"
 
@@ -83,3 +83,39 @@ class SommelierAlternativesResponse(BaseModel):
     kind: str  # "alternatives" | "not_found"
     id: str | None = None
     items: list[SommelierAlternative] = Field(default_factory=list)
+
+
+# ---- подбор «блюдо → сорт → бутылка» (docs/SOMMELIER_PAIRING.md) ------------------------------------
+class PairingFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    color: Literal["Красное", "Белое", "Розовое"] | None = None
+    sweetness: list[Literal["сухое", "полусухое", "полусладкое", "сладкое"]] | None = None
+    budget_max: float | None = Field(None, gt=0, le=1_000_000)
+    store_id: str | None = Field(None, max_length=64, pattern=SESSION_ID_PATTERN)
+    in_stock: bool = True
+
+
+class PairingDishRequest(BaseModel):
+    """С1 — вино к блюду, С4 — к блюду из рецепта (dish_id из справочника), С5 — подарок (scenario=gift),
+    analog — российский аналог зарубежного вина (определяется и по тексту: «аналог Шабли», «замена Бароло»)."""
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field("", max_length=500)
+    filters: PairingFilters = Field(default_factory=PairingFilters)
+    dish_id: str | None = Field(None, max_length=64, pattern=r"^[a-z][a-z0-9_]*$")
+    scenario: Literal["dish", "recipe", "gift", "analog"] = "dish"
+
+
+class PairingResponse(BaseModel):
+    """Ответ с бутылками: catalog_source (demo -> плашка «Демо-данные») и версии справочников и весов — всегда."""
+    model_config = ConfigDict(extra="allow")
+    kind: str  # pairing | gift | analog | similar | clarify | guardrail | wine
+    catalog_source: str
+    versions: dict[str, str]
+    wines: list[dict[str, Any]] = Field(default_factory=list)
+    dish_profile: dict[str, Any] | None = None
+    explanation: str | None = None
+    source: dict[str, Any] | None = None
+    question: str | None = None
+    notes: list[str] = Field(default_factory=list)
+    russian_only: bool = True
+    note: str | None = None

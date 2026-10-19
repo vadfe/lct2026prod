@@ -6,8 +6,11 @@
    products from pgvector (per-product best reference vector).
 3. For every candidate the best similarity of each view is read for both models; candidates are
    ranked by fusion = v4(letterbox) + v4(segmented) + w · (v1(letterbox) + v1(segmented)).
-4. The SigLIP 2 similarity of the winner and the fusion gap to the runner-up decide the answer
-   zone (found / probable / not_in_catalog), see decision.py.
+4. Twins: when the best candidates are labels of the same producer within `twin_max_gap` fusion score,
+   the twin resolver compares the photo with their references in the regions where the labels differ
+   (blend tag, vintage) and reorders them; see app/services/twin_resolver.py.
+5. The SigLIP 2 similarity of the winner and the fusion gap to the runner-up (of the fusion ranking, before
+   the twin stage) decide the answer zone (found / probable / not_in_catalog), see decision.py.
 
 OCR is intentionally not used: on the labelled test photos it did not improve top-1 accuracy
 and could not separate wines that are missing from the catalog (docs/RECOGNITION_QUALITY.md).
@@ -18,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import logging
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -38,8 +42,12 @@ from app.schemas.search.cascade import (
 from app.schemas.search.v1 import SearchResult
 from app.services.detector import DetectorService
 from app.services.embeddings import EmbeddingService
+from app.services.images import ImageService
 from app.services.query_prep_v3 import QueryPrepV3, letterbox_pil
 from app.services.siglip_embeddings import SigLIP2EmbeddingService
+from app.services.twin_resolver import TwinResolver
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -54,6 +62,11 @@ class CascadeSearchPipeline:
     v1_weight: float = 0.3
     predict_threshold: float | None = None
     target_size: int = 518
+    images: ImageService | None = None
+    twin_resolver: TwinResolver | None = None
+    twin_semaphore: asyncio.Semaphore | None = None
+    twin_max_gap: float = 0.15
+    twin_pool: int = 3
 
     async def run(
         self,
@@ -103,8 +116,11 @@ class CascadeSearchPipeline:
 
         # 4. Fusion ranking and answer zone
         ranked = self._rank(products, v1_per_view, v4_per_view)
+        margin = round(ranked[0].fusion_score - ranked[1].fusion_score, 4) if len(ranked) > 1 else None
+        twin_started = time.perf_counter()
+        ranked, twin_resolution = await self._resolve_twins(raw_crop, ranked, products)
+        twin_ms = self._elapsed(twin_started) if twin_resolution is not None else None
         best = ranked[0] if ranked else None
-        margin = round(best.fusion_score - ranked[1].fusion_score, 4) if len(ranked) > 1 else None
 
         # Итоговая уверенность: берем собственное значение из первого каскада (DINOv2)
         # для победителя, определенного вторым каскадом (SigLIP 2).
@@ -142,13 +158,14 @@ class CascadeSearchPipeline:
             stage_reached="fusion" if v4_per_view is not None else "v1_only",
             winner=best if status != NOT_IN_CATALOG else None,
             final_results=ranked[:k],
-            decision=CascadeDecision(status=status, similarity=confidence, margin=margin, reason=reason),
+            decision=CascadeDecision(status=status, similarity=confidence, margin=margin, reason=reason, twin_resolution=twin_resolution),
             v1_results=v1_results,
             timings=CascadeTimings(
                 bbox_detect_ms=bbox_detect_ms,
                 query_prep_ms=query_prep_ms,
                 v1_total_ms=v1_total_ms,
                 v4_total_ms=v4_total_ms,
+                twin_ms=twin_ms,
                 total_ms=self._elapsed(started),
             ),
             bbox_crop=self._encode_image(raw_crop) if include_images else None,
@@ -183,6 +200,48 @@ class CascadeSearchPipeline:
         self.v1_embeddings.embed_batch(views)
         if self.v4_embeddings is not None:
             self.v4_embeddings.embed_batch(views)
+
+    async def _resolve_twins(
+        self,
+        crop: Image.Image,
+        ranked: list[CascadeCandidate],
+        products: dict[uuid.UUID, Product],
+    ) -> tuple[list[CascadeCandidate], str | None]:
+        """Reorders same-producer twins at the top by the regions where their labels differ.
+
+        Returns the (possibly reordered) ranking and the resolver's verdict, or None when the stage did not run.
+        """
+        if self.twin_resolver is None or self.images is None or len(ranked) < 2:
+            return ranked, None
+        leader = ranked[0]
+        group = [
+            index for index, candidate in enumerate(ranked[: self.twin_pool])
+            if candidate.manufacturer and candidate.manufacturer == leader.manufacturer
+            and leader.fusion_score - candidate.fusion_score <= self.twin_max_gap
+        ]
+        if len(group) < 2:
+            return ranked, None
+        try:
+            paths = [products[ranked[index].product_id].label_image_path for index in group]
+            references = await asyncio.to_thread(lambda: [self._load_reference(path) for path in paths])
+            if self.twin_semaphore is not None:
+                async with self.twin_semaphore:
+                    resolution = await asyncio.to_thread(self.twin_resolver.resolve, crop, references, tuple(paths))
+            else:
+                resolution = await asyncio.to_thread(self.twin_resolver.resolve, crop, references, tuple(paths))
+        except Exception:
+            logger.exception("Twin resolver failed; keeping the fusion order")
+            return ranked, "Этап близнецов не выполнен из-за ошибки: порядок по fusion"
+        if resolution.order is None:
+            return ranked, resolution.reason
+        reordered = list(ranked)
+        for position, chosen in zip(group, resolution.order, strict=True):
+            reordered[position] = ranked[group[chosen]]
+        return [candidate.model_copy(update={"rank": rank}) for rank, candidate in enumerate(reordered, 1)], resolution.reason
+
+    def _load_reference(self, label_image_path: str) -> Image.Image:
+        with Image.open(self.images.resolve(label_image_path)) as image:
+            return image.convert("RGB")
 
     def _rank(
         self,
