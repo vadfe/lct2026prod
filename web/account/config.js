@@ -1,0 +1,74 @@
+// Настройки личного кабинета: все числа и тексты правил в одном месте.
+// Меняйте значения здесь — экран кабинета показывает правила по этим же числам.
+
+export const STORAGE_VERSION = 1;
+
+export const KEYS = {
+    account: 'vina_account',
+    history: 'vina_history',
+    cellar: 'vina_cellar',
+    reviews: 'vina_reviews',
+    ratingPrefix: 'vina_rating_',   // оценка бокалами из карточки вина (ключ существующего сканера)
+};
+
+// «Путь лозы»: очки за действия и сколько очков нужно для 100%
+export const POINTS = { scan: 1, cellar: 2, review: 5 };
+export const VINE_FULL_POINTS = 50;
+// стадии по доле от VINE_FULL_POINTS; key — картинка из art.js (группа vine)
+export const VINE_STAGES = [
+    { from: 0, key: 'bud', title: 'Почка на веточке' },
+    { from: 0.25, key: 'flowers', title: 'Цветки' },
+    { from: 0.5, key: 'green', title: 'Зелёная гроздь' },
+    { from: 0.75, key: 'ripe', title: 'Налитая цветом гроздь' },
+    { from: 1, key: 'golden', title: 'Полная гроздь с золотым ореолом' },
+];
+
+// «Развёрнутая» рецензия — от стольких символов
+export const REVIEW_MIN_CHARS = 150;
+
+// Статусы: key — картинка из art.js (группа statuses)
+export const STATUSES = [
+    { key: 'collector', title: 'Коллекционер Третьяков', need: 20, metric: 'cellar', rule: n => `${n}+ вин в «Винном погребе»` },
+    { key: 'traveller', title: 'Путешественник Конюхов', need: 3, metric: 'regions', rule: n => `вина из ${n}+ разных регионов` },
+    { key: 'critic', title: 'Критик Белинский', need: 3, metric: 'reviews', rule: n => `${n}+ развёрнутые рецензии (от ${REVIEW_MIN_CHARS} символов)` },
+];
+
+// Веса вкуса: квиз задаёт старт, лайки (погреб, оценка 4–5) и дизлайки (оценка 1–2) сдвигают профиль
+export const WEIGHTS = { quiz: 1, like: 0.75, dislike: -0.5, min: 0, max: 5 };
+export const LIKE_RATING = 4;      // оценка от 4 бокалов — лайк
+export const DISLIKE_RATING = 2;   // оценка до 2 бокалов — дизлайк
+
+export const COLORS = ['Красное', 'Белое', 'Розовое'];
+export const SUGARS = ['сухое', 'полусухое', 'полусладкое', 'сладкое'];
+
+// Фруктовая палитра: цвет × сахар → фрукт (key — картинка из art.js, группа fruits)
+export const PALETTE = {
+    'Красное': [['cherry', 'Вишня'], ['currant', 'Смородина'], ['strawberry', 'Клубника'], ['watermelon', 'Арбуз']],
+    'Белое': [['lemon', 'Лимон'], ['apple', 'Яблоко'], ['pear', 'Груша'], ['pineapple', 'Ананас']],
+    'Розовое': [['grapefruit', 'Грейпфрут'], ['dogwood', 'Кизил'], ['pomegranate', 'Гранат'], ['raspberry', 'Малина']],
+};
+
+// Регион каталога → региональный символ (key — картинка из art.js, группа regions); остальные — «Винный следопыт»
+export const REGION_SYMBOLS = [
+    { key: 'kuban', title: 'Кубанский колос', regions: ['Кубань', 'Краснодарский край'] },
+    { key: 'crimea', title: 'Таврическая амфора', regions: ['Крым'] },
+    { key: 'dagestan', title: 'Дагестанская крепость', regions: ['Дагестан'] },
+    { key: 'stavropol', title: 'Врата Предгорья', regions: ['Ставрополье', 'Ставропольский край'] },
+    { key: 'don', title: 'Донской предел', regions: ['Долина Дона', 'Ростовская область'] },
+    { key: 'explorer', title: 'Винный следопыт', regions: [], other: true, hint: 'нишевые регионы: Нижняя Волга, Самара, Осетия…' },
+];
+
+export const HISTORY_LIMIT = 200;
+export const RECS_LIMIT = 6;
+export const RECS_SEEDS = 3;       // от скольких последних любимых вин берём похожие
+
+export const PROVIDERS = {
+    yandex: { title: 'Яндекс ID', defaultName: 'Гость Яндекса' },
+    vk: { title: 'VK ID', defaultName: 'Гость VK' },
+};
+
+export const TEXTS = {
+    recsCaption: 'Пользователи с вашим вкусом высоко оценили это вино',
+    loginLead: 'Сохраняйте историю сканирований, собирайте «Винный погреб» и пишите рецензии. Данные хранятся только на этом устройстве.',
+    stubNote: 'Демо-вход: аккаунт создаётся на этом устройстве, на сервер ничего не отправляется.',
+};

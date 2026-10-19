@@ -6,6 +6,7 @@
     <title>Своё Вино | Сканер</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="vina.css">
+    <link rel="stylesheet" href="account/account.css">
 </head>
 <body>
     <div class="app-container">
@@ -20,6 +21,7 @@
                     <span class="status-dot"></span>
                     <span class="status-label" id="status-text">...</span>
                 </div>
+                <button class="acc-header-btn" id="btn-account" type="button" title="Личный кабинет">Войти</button>
                 <button class="btn-icon" id="btn-settings" title="Адрес сервера">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
@@ -281,6 +283,9 @@
                 </div>
             </div>
         </main>
+
+        <!-- Личный кабинет (содержимое строит account/view.js) -->
+        <main id="account-view" class="view"></main>
 
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal hidden">

@@ -1,4 +1,5 @@
 import { loadDetector, detect, draw } from './detector.js';
+import { initAccount, onWineShown } from './account/view.js';
 
 // Сканер «Своё Вино»: фото -> каскад (/api/cascade/search) -> ответ «найдено» / «похоже» / «нет в каталоге» + сомелье.
 // На сервер всегда уходит полный кадр или исходное фото: этикетку вырезает серверная YOLO, и пороги зон ответа
@@ -24,13 +25,14 @@ const btnSnap = $('btn-snap');
 const fileInput = $('file-input');
 const scannerHint = $('scanner-hint');
 
-const views = { scanner: $('scanner-view'), loading: $('loading-view'), result: $('result-view'), original: $('original-view'), batch: $('batch-view') };
+const views = { scanner: $('scanner-view'), loading: $('loading-view'), result: $('result-view'), original: $('original-view'), batch: $('batch-view'), account: $('account-view') };
 let returnTo = 'scanner';    // куда ведёт «Назад» из ответа: к сканеру или к проверке набора
 function showView(name) {
     Object.values(views).forEach(view => view.classList.remove('active'));
     views[name].classList.add('active');
     window.scrollTo({ top: 0 });
 }
+initAccount({ showView, api, getJson, storage });
 
 const STATUS = {
     found: { icon: '✓', title: 'Вино найдено в каталоге' },
@@ -201,6 +203,8 @@ async function renderWine(winner, status, id) {
         }
         if (info.value.profile) renderProfile($('wine-description'), info.value.profile);
     }
+    onWineShown(winner, status, info.status === 'fulfilled' ? info.value : null,
+        product.status === 'fulfilled' ? product.value.image_url : null, returnTo !== 'batch');
 
     loadWinePairing(winner.slug, id);
 
