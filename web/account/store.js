@@ -48,9 +48,20 @@ export function setName(name) {
     if (account) writeJson(KEYS.account, { ...account, name: name.trim().slice(0, 40) || account.name });
 }
 
-export function setQuiz(colors, sugars) {
+// Квиз — выбранные клетки палитры «цвет|сахар»; для весов они раскладываются на множества цветов и уровней сахара
+export function setQuiz(cells) {
     const account = getAccount();
-    if (account) writeJson(KEYS.account, { ...account, quiz: { colors: colors.filter(c => COLORS.includes(c)), sugars: sugars.filter(s => SUGARS.includes(s)) } });
+    if (!account) return;
+    const valid = cells.map(c => c.split('|')).filter(([c, s]) => COLORS.includes(c) && SUGARS.includes(s));
+    const colors = COLORS.filter(c => valid.some(([vc]) => vc === c));
+    const sugars = SUGARS.filter(s => valid.some(([, vs]) => vs === s));
+    writeJson(KEYS.account, { ...account, quiz: { colors, sugars, cells: valid.map(v => v.join('|')) } });
+}
+
+export function quizCells(quiz) {
+    if (!quiz) return [];
+    if (Array.isArray(quiz.cells)) return quiz.cells;
+    return quiz.colors.flatMap(c => quiz.sugars.map(s => `${c}|${s}`));
 }
 
 // ---------- история, погреб, рецензии ----------
@@ -96,6 +107,11 @@ export function setReview(wine, text) {
 export function getRating(slug) {
     const value = parseInt((storage && storage.get(`${KEYS.ratingPrefix}${slug}`)) || '0', 10);
     return value >= 1 && value <= 5 ? value : 0;
+}
+
+// Тот же ключ, что у бокалов в карточке сканера: оценка видна и там, и в кабинете
+export function setRating(slug, value) {
+    if (storage && slug && value >= 1 && value <= 5) storage.set(`${KEYS.ratingPrefix}${slug}`, String(value));
 }
 
 // Все вина, о которых кабинет что-то знает: история, погреб, рецензии (последняя известная карточка)

@@ -1,9 +1,9 @@
-// Личный кабинет «Своё Вино»: вход-заглушка, квиз, «Путь лозы», фруктовая палитра, регионы, статусы, рекомендации,
-// погреб / рецензии / история и кнопки «В погреб» / «Заметка» в карточке распознанного вина.
+// Личный кабинет «Своё Вино» (мобильная раскладка): сводка под шапкой, карусель «Лоза / Вкус / Регионы / Статусы / Советы»,
+// погреб / рецензии / история, настройки профиля; квиз — фруктовая палитра; кнопки «В погреб» / «Заметка» в карточке вина.
 // Всё хранится только в браузере (store.js); сервер вызывается лишь за справкой о вине и похожими винами.
 import { artSvg } from './art.js';
 import {
-    COLORS, DISLIKE_RATING, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_SEEDS, REVIEW_MIN_CHARS, SUGARS, TEXTS,
+    COLORS, DISLIKE_RATING, GUIDE, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_SEEDS, REVIEW_MIN_CHARS, SUGARS, TEXTS,
     VINE_FULL_POINTS, VINE_STAGES, WEIGHTS,
 } from './config.js';
 import * as store from './store.js';
@@ -13,8 +13,11 @@ let prevView = 'scanner';  // куда возвращает «Назад» из 
 let currentWine = null;    // вино на экране результата сканера
 let listTab = 'cellar';
 let quizEditing = false;
+let slideIndex = 0;        // открытая карточка карусели (переживает перерисовку)
 
+const SLIDES = ['Лоза', 'Вкус', 'Регионы', 'Статусы', 'Советы'];
 const $ = id => document.getElementById(id);
+const later = f => ((typeof window !== 'undefined' && window.requestAnimationFrame) ? window.requestAnimationFrame(f) : setTimeout(f, 0));
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -40,12 +43,11 @@ function card(kicker, title) {
 }
 
 const dateText = ts => new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-const wineImage = url => (url ? ctx.api(url) : '');
 
 function thumb(url) {
     if (!url) return el('div', 'acc-thumb empty');
     const img = el('img', 'acc-thumb');
-    img.src = wineImage(url);
+    img.src = ctx.api(url);
     img.alt = '';
     img.loading = 'lazy';
     return img;
@@ -54,6 +56,14 @@ function thumb(url) {
 function sweetnessOf(profile) {
     const scale = profile && (profile.scales || []).find(s => s.key === 'sweetness');
     return scale && scale.word ? scale.word : null;
+}
+
+function bar(fraction) {
+    const track = el('div', 'acc-bar');
+    const fill = el('span');
+    fill.style.width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
+    track.append(fill);
+    return track;
 }
 
 // ---------- точка входа ----------
@@ -97,13 +107,24 @@ function refreshAll() {
 function renderAccount() {
     const root = $('account-view');
     const top = el('div', 'acc-topbar');
-    const back = button('btn-back', 'Назад', closeAccount);
-    top.append(back);
+    top.append(button('btn-back', 'Назад', closeAccount));
     const body = el('div', 'acc');
     if (!store.isLoggedIn()) body.append(loginCard());
     else if (!store.getAccount().quiz || quizEditing) body.append(quizCard());
     else body.append(...dashboard());
     root.replaceChildren(top, body);
+    const track = root.querySelector('.acc-track');
+    if (track) later(() => { track.scrollLeft = slideIndex * track.clientWidth; });
+}
+
+function guideBlock(open = false) {
+    const box = el('details', 'acc-card acc-guide');
+    if (open) box.open = true;
+    box.append(el('summary', '', 'Как пользоваться кабинетом'));
+    const list = el('ol', 'acc-guide-list');
+    GUIDE.forEach(line => list.append(el('li', '', line)));
+    box.append(list);
+    return box;
 }
 
 function loginCard() {
@@ -118,47 +139,47 @@ function loginCard() {
         }, artSvg('ui', key, { size: 28 })));
     });
     box.append(el('p', 'acc-note', TEXTS.stubNote));
-    return box;
+    const stack = el('div', 'acc-stack');
+    stack.append(box, guideBlock());
+    return stack;
 }
 
-function chipGroup(title, values, selected, render) {
-    const group = el('div', 'acc-quiz-group');
-    group.append(el('div', 'acc-quiz-label', title));
-    const row = el('div', 'acc-chips');
-    values.forEach(value => {
-        const chip = button('acc-chip', '', () => {
-            chip.classList.toggle('on');
-            chip.setAttribute('aria-pressed', chip.classList.contains('on') ? 'true' : 'false');
-            render();
-        }, render.icon ? render.icon(value) : null);
-        chip.append(el('span', '', value));
-        chip.dataset.value = value;
-        if (selected.includes(value)) chip.classList.add('on');
-        chip.setAttribute('aria-pressed', selected.includes(value) ? 'true' : 'false');
-        row.append(chip);
-    });
-    group.append(row);
-    return group;
-}
-
+// Квиз — та же фруктовая палитра, что в кабинете: каждый фрукт = цвет × сладость
 function quizCard() {
-    const quiz = store.getAccount().quiz || { colors: [], sugars: [] };
-    const box = card('Первичная настройка', 'Какое вино вам нравится?');
-    box.append(el('p', 'acc-lead', 'Выберите один или несколько вариантов. Профиль дальше подстроится под ваши лайки и оценки.'));
+    const account = store.getAccount();
+    const selected = new Set(store.quizCells(account.quiz));
+    const box = card('Первичная настройка', 'Какое вино вам по вкусу?');
+    box.append(el('p', 'acc-lead', TEXTS.quizLead));
+    const grid = el('div', 'acc-palette acc-quiz-grid');
+    grid.append(el('div', ''));
+    SUGARS.forEach(s => grid.append(el('div', 'acc-palette-head', s)));
     const save = button('acc-btn primary', 'Сохранить', () => {
-        const picked = group => [...group.querySelectorAll('.acc-chip.on')].map(c => c.dataset.value);
-        store.setQuiz(picked(colors), picked(sugars));
+        store.setQuiz([...grid.querySelectorAll('.acc-palette-cell.on')].map(c => c.dataset.cell));
         quizEditing = false;
         renderAccount();
     });
-    const update = () => { save.disabled = !colors.querySelector('.on') || !sugars.querySelector('.on'); };
-    update.icon = value => (COLORS.includes(value) ? artSvg('fruits', { 'Красное': 'cherry', 'Белое': 'lemon', 'Розовое': 'raspberry' }[value], { size: 24 }) : null);
-    const colors = chipGroup('Цвет', COLORS, quiz.colors, update);
-    const sugars = chipGroup('Сахар', SUGARS, quiz.sugars, update);
-    box.append(colors, sugars);
+    const update = () => { save.disabled = !grid.querySelector('.acc-palette-cell.on'); };
+    COLORS.forEach(color => {
+        grid.append(el('div', 'acc-palette-row', color));
+        SUGARS.forEach(sugar => {
+            const f = store.fruitFor(color, sugar);
+            const key = `${color}|${sugar}`;
+            const cell = button('acc-palette-cell pick', f.title, () => {
+                cell.classList.toggle('on');
+                cell.setAttribute('aria-pressed', cell.classList.contains('on') ? 'true' : 'false');
+                update();
+            }, artSvg('fruits', f.key, { size: 40 }));
+            cell.dataset.cell = key;
+            cell.title = `${color.toLowerCase()}, ${sugar}`;
+            if (selected.has(key)) cell.classList.add('on');
+            cell.setAttribute('aria-pressed', selected.has(key) ? 'true' : 'false');
+            grid.append(cell);
+        });
+    });
+    box.append(grid);
     const actions = el('div', 'acc-actions-row');
     actions.append(save);
-    if (store.getAccount().quiz) actions.append(button('acc-btn', 'Отмена', () => { quizEditing = false; renderAccount(); }));
+    if (account.quiz) actions.append(button('acc-btn', 'Отмена', () => { quizEditing = false; renderAccount(); }));
     box.append(actions);
     update();
     return box;
@@ -166,41 +187,69 @@ function quizCard() {
 
 function dashboard() {
     const m = store.metrics();
-    return [profileCard(), vineCard(m), tasteCard(m), regionsCard(m), statusesCard(m), recsCard(), listsCard(m)];
+    const carousel = carouselBlock(m);
+    return [summaryCard(m, carousel.go), carousel.node, listsCard(), guideBlock(), settingsCard()];
 }
 
-function profileCard() {
+// Сводка под шапкой: все текущие достижения разом; нажатие открывает нужную карточку карусели
+function summaryCard(m, go) {
     const account = store.getAccount();
-    const box = el('section', 'acc-card acc-profile');
+    const box = el('section', 'acc-card acc-summary');
     const head = el('div', 'acc-profile-head');
-    head.append(artSvg('ui', 'account', { size: 56 }));
+    head.append(artSvg('ui', 'account', { size: 44 }));
     const who = el('div', 'acc-profile-who');
-    who.append(el('h2', 'acc-name', account.name), el('div', 'acc-muted', `Вход через ${PROVIDERS[account.provider] ? PROVIDERS[account.provider].title : account.provider} · демо`));
+    who.append(el('div', 'acc-name', account.name), el('div', 'acc-muted', `${m.points} / ${VINE_FULL_POINTS} очков · ${m.counts.cellar} в погребе`));
     head.append(who);
-    const actions = el('div', 'acc-actions-row');
-    actions.append(
-        button('acc-btn small', 'Изменить имя', () => {
-            const name = window.prompt('Как к вам обращаться?', account.name);
-            if (name !== null) { store.setName(name); refreshAll(); }
-        }),
-        button('acc-btn small', 'Выйти', () => { store.logout(); refreshAll(); }),
-        button('acc-btn small danger', 'Удалить мои данные', () => {
-            if (window.confirm('Удалить профиль, историю, погреб и рецензии с этого устройства?')) { store.wipe(); refreshAll(); }
-        }),
+    const chips = el('div', 'acc-sum-chips');
+    const chip = (index, art, label) => {
+        const c = button('acc-sum-chip', '', () => go(index));
+        c.append(art, el('span', '', label));
+        return c;
+    };
+    const earnedRegions = m.regions.filter(r => r.earned);
+    const statusArt = el('span', 'acc-sum-statuses');
+    m.statuses.forEach(s => statusArt.append(artSvg('statuses', s.key, { size: 26, locked: !s.earned })));
+    chips.append(
+        chip(0, artSvg('vine', m.stage.key, { size: 34 }), `${Math.round(m.progress * 100)}%`),
+        chip(1, artSvg('fruits', m.fruit.key, { size: 34 }), m.fruit.title),
+        chip(2, artSvg('regions', (earnedRegions[0] || m.regions[0]).key, { size: 34, locked: !earnedRegions.length }), `${earnedRegions.length} / ${m.regions.length}`),
+        chip(3, statusArt, `${m.statuses.filter(s => s.earned).length} / ${m.statuses.length}`),
     );
-    box.append(head, actions);
+    box.append(head, chips);
     return box;
 }
 
-function bar(fraction) {
-    const track = el('div', 'acc-bar');
-    const fill = el('span');
-    fill.style.width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
-    track.append(fill);
-    return track;
+function carouselBlock(m) {
+    const node = el('div', 'acc-carousel');
+    const nav = el('div', 'acc-slide-nav');
+    const track = el('div', 'acc-track');
+    const dots = el('div', 'acc-dots');
+    const slides = [vineSlide(m), tasteSlide(m), regionsSlide(m), statusesSlide(m), recsSlide()];
+    const paint = i => {
+        slideIndex = i;
+        nav.querySelectorAll('.acc-slide-tab').forEach((t, k) => t.classList.toggle('on', k === i));
+        dots.querySelectorAll('.acc-dot').forEach((d, k) => d.classList.toggle('on', k === i));
+    };
+    const go = i => {
+        paint(i);
+        track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+        node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    SLIDES.forEach((title, i) => {
+        nav.append(button('acc-slide-tab', title, () => go(i)));
+        dots.append(button('acc-dot', '', () => go(i)));
+    });
+    slides.forEach(s => { s.classList.add('acc-slide'); track.append(s); });
+    track.addEventListener('scroll', () => {
+        const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+        if (i !== slideIndex && i >= 0 && i < slides.length) paint(i);
+    });
+    node.append(nav, track, dots);
+    paint(Math.min(slideIndex, slides.length - 1));
+    return { node, go };
 }
 
-function vineCard(m) {
+function vineSlide(m) {
     const box = card('Путь лозы', m.stage.title);
     const row = el('div', 'acc-vine');
     row.append(artSvg('vine', m.stage.key, { size: 96 }));
@@ -212,9 +261,8 @@ function vineCard(m) {
     row.append(info);
     const stages = el('div', 'acc-stages');
     VINE_STAGES.forEach(stage => {
-        const reached = m.progress >= stage.from;
         const item = el('div', `acc-stage${stage.key === m.stage.key ? ' current' : ''}`);
-        item.append(artSvg('vine', stage.key, { size: 40, locked: !reached }), el('span', '', `${Math.round(stage.from * 100)}%`));
+        item.append(artSvg('vine', stage.key, { size: 40, locked: m.progress < stage.from }), el('span', '', `${Math.round(stage.from * 100)}%`));
         item.title = stage.title;
         stages.append(item);
     });
@@ -223,10 +271,10 @@ function vineCard(m) {
     return box;
 }
 
-function tasteCard(m) {
+function tasteSlide(m) {
     const fruit = m.fruit;
-    const box = card('Фруктовая палитра', m.hasTaste && fruit ? `Ваш фрукт: ${fruit.title}` : 'Пройдите квиз');
-    if (fruit) box.append(el('div', 'acc-muted', `${fruit.color.toLowerCase()}, ${fruit.sugar}`));
+    const box = card('Фруктовая палитра', `Ваш фрукт: ${fruit.title}`);
+    box.append(el('div', 'acc-muted', `${fruit.color.toLowerCase()}, ${fruit.sugar}`));
     if (m.shifts.length) {
         const note = el('div', 'acc-shift');
         note.append(el('b', '', 'Профиль сместился: '), document.createTextNode(m.shifts.join('; ')));
@@ -242,20 +290,19 @@ function tasteCard(m) {
         SUGARS.forEach(sugar => {
             const f = store.fruitFor(color, sugar);
             const w = maxW > 0 ? (cw[color] * sw[sugar]) / maxW : 0;
-            const cell = el('div', `acc-palette-cell${fruit && f.key === fruit.key && m.hasTaste ? ' main' : ''}`);
+            const cell = el('div', `acc-palette-cell${f.key === fruit.key ? ' main' : ''}`);
             cell.style.setProperty('--w', w.toFixed(2));
             cell.title = `${f.title}: ${color.toLowerCase()}, ${sugar}`;
-            cell.append(artSvg('fruits', f.key, { size: 36, locked: w === 0 }), el('span', '', f.title));
+            cell.append(artSvg('fruits', f.key, { size: 34, locked: w === 0 }), el('span', '', f.title));
             grid.append(cell);
         });
     });
     box.append(grid, el('div', 'acc-rule',
         `Старт — ваш квиз (+${WEIGHTS.quiz}). Лайк — вино в погребе или оценка ${LIKE_RATING}–5 бокалов: +${WEIGHTS.like} его цвету и сладости; оценка 1–${DISLIKE_RATING}: ${WEIGHTS.dislike}.`));
-    box.append(button('acc-btn small', 'Пройти квиз заново', () => { quizEditing = true; renderAccount(); }));
     return box;
 }
 
-function regionsCard(m) {
+function regionsSlide(m) {
     const box = card('Региональные символы', `Открыто ${m.regions.filter(r => r.earned).length} из ${m.regions.length}`);
     const grid = el('div', 'acc-regions');
     m.regions.forEach(r => {
@@ -263,14 +310,14 @@ function regionsCard(m) {
         item.append(artSvg('regions', r.key, { size: 56, locked: !r.earned }), el('div', 'acc-region-title', r.title));
         item.append(el('div', 'acc-muted', r.earned
             ? `${r.count} ${store.plural(r.count, 'вино', 'вина', 'вин')}`
-            : (r.other ? r.hint : `вин из региона «${r.regions[0]}» пока нет`)));
+            : (r.other ? r.hint : `вин региона «${r.regions[0]}» пока нет`)));
         grid.append(item);
     });
     box.append(grid, el('div', 'acc-rule', 'Символ открывается первым вином региона в истории или погребе.'));
     return box;
 }
 
-function statusesCard(m) {
+function statusesSlide(m) {
     const box = card('Высшая лига', 'Статусы');
     m.statuses.forEach(s => {
         const row = el('div', `acc-status${s.earned ? ' earned' : ''}`);
@@ -284,10 +331,30 @@ function statusesCard(m) {
     return box;
 }
 
+function settingsCard() {
+    const account = store.getAccount();
+    const box = card('Профиль', '');
+    box.append(el('div', 'acc-muted', `Вход через ${PROVIDERS[account.provider] ? PROVIDERS[account.provider].title : account.provider} · демо, данные только на этом устройстве`));
+    const actions = el('div', 'acc-actions-row');
+    actions.append(
+        button('acc-btn small', 'Пройти квиз заново', () => { quizEditing = true; renderAccount(); }),
+        button('acc-btn small', 'Изменить имя', () => {
+            const name = window.prompt('Как к вам обращаться?', account.name);
+            if (name !== null) { store.setName(name); refreshAll(); }
+        }),
+        button('acc-btn small', 'Выйти', () => { store.logout(); refreshAll(); }),
+        button('acc-btn small danger', 'Удалить мои данные', () => {
+            if (window.confirm('Удалить профиль, историю, погреб и рецензии с этого устройства?')) { store.wipe(); refreshAll(); }
+        }),
+    );
+    box.append(actions);
+    return box;
+}
+
 // ---------- рекомендации ----------
 
-function recsCard() {
-    const box = card('Рекомендации', 'Вам может понравиться');
+function recsSlide() {
+    const box = card('Советы', 'Вам может понравиться');
     box.append(el('p', 'acc-caption', TEXTS.recsCaption));
     const list = el('div', 'acc-recs');
     list.append(el('div', 'acc-muted', 'Подбираем вина…'));
@@ -350,13 +417,17 @@ async function loadRecs(list) {
 
 // ---------- погреб, рецензии, история ----------
 
-function listsCard(m) {
+function listsCard() {
     const box = el('section', 'acc-card');
     const tabs = el('div', 'acc-tabs');
+    const withRating = (w, text) => {
+        const r = store.getRating(w.slug);
+        return r ? `${text} · оценка ${r}/5` : text;
+    };
     const lists = {
-        cellar: { title: `Погреб · ${m.counts.cellar}`, items: Object.values(store.getCellar()).sort((a, b) => b.added_ts - a.added_ts), meta: w => `добавлено ${dateText(w.added_ts)}` },
-        reviews: { title: `Рецензии · ${m.counts.reviews}`, items: Object.values(store.getReviews()).sort((a, b) => b.updated_ts - a.updated_ts), meta: w => `«${w.text.slice(0, 80)}${w.text.length > 80 ? '…' : ''}»` },
-        history: { title: `История · ${m.counts.history}`, items: store.getHistory(), meta: w => `${dateText(w.ts)} · ${w.status === 'found' ? 'найдено' : 'похоже'}` },
+        cellar: { title: `Погреб · ${Object.keys(store.getCellar()).length}`, items: Object.values(store.getCellar()).sort((a, b) => b.added_ts - a.added_ts), meta: w => withRating(w, `добавлено ${dateText(w.added_ts)}`) },
+        reviews: { title: `Рецензии · ${Object.keys(store.getReviews()).length}`, items: Object.values(store.getReviews()).sort((a, b) => b.updated_ts - a.updated_ts), meta: w => `«${w.text.slice(0, 80)}${w.text.length > 80 ? '…' : ''}»` },
+        history: { title: `История · ${store.getHistory().length}`, items: store.getHistory(), meta: w => withRating(w, `${dateText(w.ts)} · ${w.status === 'found' ? 'найдено' : 'похоже'}`) },
     };
     const body = el('div', 'acc-list');
     const show = key => {
@@ -393,6 +464,32 @@ function closeModal() {
     if (modal) modal.remove();
 }
 
+// Оценка бокалами — тот же ключ, что у блока «Поставь свою оценку» в сканере
+function ratingRow(slug) {
+    const box = el('div', 'acc-rating');
+    box.append(el('div', 'acc-quiz-label', 'Ваша оценка'));
+    const glasses = el('div', 'acc-glasses');
+    const label = el('span', 'acc-muted');
+    const paint = () => {
+        const value = store.getRating(slug);
+        glasses.querySelectorAll('.acc-glass').forEach((g, i) => {
+            g.classList.toggle('on', i < value);
+            g.querySelector('img').src = i < value ? 'img/glass_filled_straight.png' : 'img/glass_empty_straight.png';
+        });
+        label.textContent = value ? `${value} из 5 · ${value >= LIKE_RATING ? 'лайк' : (value <= DISLIKE_RATING ? 'не моё' : 'нейтрально')}` : 'нажмите на бокал';
+    };
+    for (let i = 1; i <= 5; i += 1) {
+        const img = el('img');
+        img.alt = String(i);
+        const glass = button('acc-glass', '', () => { store.setRating(slug, i); paint(); refreshAll(); }, img);
+        glass.title = `${i} из 5`;
+        glasses.append(glass);
+    }
+    box.append(glasses, label);
+    paint();
+    return box;
+}
+
 async function openWine(wine) {
     closeModal();
     const meta = store.wineMeta({ ...(store.knownWines().get(wine.slug) || {}), ...wine });
@@ -414,9 +511,7 @@ async function openWine(wine) {
     sheet.append(head);
     const paintTags = () => tags.replaceChildren(...[meta.category, meta.sweetness, meta.region].filter(Boolean).map(t => el('span', 'acc-tag', t)));
     paintTags();
-
-    const rating = store.getRating(meta.slug);
-    if (rating) sheet.append(el('div', 'acc-muted', `Ваша оценка: ${rating} из 5 бокалов`));
+    sheet.append(ratingRow(meta.slug));
 
     if (store.isLoggedIn()) {
         const actions = el('div', 'acc-actions-row');

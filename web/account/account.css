@@ -6,8 +6,8 @@
     --acc-serif: 'Playfair Display', Georgia, serif;
 }
 
-/* Шестерёнка «адрес сервера» больше не нужна в шапке: адрес берётся из ссылки ?api= (обработчик в app.js остаётся) */
-#btn-settings { display: none; }
+/* Шестерёнка «адрес сервера» и индикатор «онлайн» были нужны для туннеля; адрес берётся из ссылки ?api= (обработчики в app.js остаются) */
+#btn-settings, #server-status { display: none; }
 
 .acc-header-btn {
     display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border: 1px solid var(--acc-wine-line);
@@ -149,6 +149,56 @@
 .acc-textarea:focus { outline: 2px solid var(--acc-wine-line); border-color: var(--acc-wine); }
 .acc-counter { font-size: 12px; color: #96692c; margin-top: 4px; }
 .acc-counter.ok { color: #4f7a4b; }
+
+/* сводка под шапкой */
+.acc-stack { display: flex; flex-direction: column; gap: 14px; }
+.acc-summary { padding: 12px 14px; }
+.acc-profile-who { min-width: 0; }
+.acc-summary .acc-name { font-size: 19px; }
+.acc-sum-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.acc-sum-chip {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding: 6px 2px; min-width: 0;
+    border: 1px solid var(--acc-line); border-radius: 14px; background: #faf8f6; font: inherit; font-size: 11px; font-weight: 600;
+    color: var(--acc-ink-2); cursor: pointer;
+}
+.acc-sum-chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-sum-statuses { display: flex; gap: 1px; height: 34px; align-items: center; }
+
+/* карусель */
+.acc-carousel { scroll-margin-top: 90px; }
+.acc-slide-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+.acc-slide-nav::-webkit-scrollbar { display: none; }
+.acc-slide-tab {
+    flex-shrink: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
+    font: inherit; font-size: 13px; color: var(--acc-ink-2); cursor: pointer;
+}
+.acc-slide-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
+.acc-track {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; align-items: flex-start;
+}
+.acc-track::-webkit-scrollbar { display: none; }
+.acc-slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; }
+.acc-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.acc-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--acc-line); cursor: pointer; }
+.acc-dot.on { width: 20px; border-radius: 999px; background: var(--acc-wine); }
+
+/* квиз — палитра с выбором */
+.acc-quiz-grid .acc-palette-cell.pick { cursor: pointer; font: inherit; font-size: 10px; background: #faf8f6; border: 1px solid var(--acc-line); }
+.acc-quiz-grid .acc-palette-cell.pick .acc-art { opacity: .55; }
+.acc-quiz-grid .acc-palette-cell.pick.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); font-weight: 700; }
+.acc-quiz-grid .acc-palette-cell.pick.on .acc-art { opacity: 1; }
+
+/* оценка бокалами в карточке вина */
+.acc-rating { margin: 6px 0 2px; }
+.acc-glasses { display: flex; gap: 6px; margin-bottom: 4px; }
+.acc-glass { width: 40px; height: 44px; padding: 2px; border: 1px solid var(--acc-line); border-radius: 10px; background: #fff; cursor: pointer; }
+.acc-glass.on { background: var(--acc-wine-soft); border-color: var(--acc-wine-line); }
+.acc-glass img { width: 100%; height: 100%; object-fit: contain; }
+
+/* подсказка «Как пользоваться» */
+.acc-guide summary { cursor: pointer; font-family: var(--acc-serif); font-size: 16px; font-weight: 600; color: var(--acc-wine); }
+.acc-guide-list { margin: 10px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--acc-ink-2); }
 
 /* кнопки кабинета в карточке распознанного вина */
 .acc-wine-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
