@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     cascade_found_min_margin: float = Field(0.15, ge=0.0, le=4.0)
     cascade_reject_below_similarity: float = Field(0.55, ge=0.0, le=1.0)
     cascade_predict_threshold: float | None = Field(None, ge=0.0, le=1.0)
+    # Twin stage: same-producer candidates within this fusion gap are reordered by the regions where their labels differ
+    enable_cascade_twin_resolver: bool = True
+    cascade_twin_max_gap: float = Field(0.15, ge=0.0, le=4.0)
+    cascade_twin_pool: int = Field(3, ge=2, le=10)
 
     @model_validator(mode="after")
     def check_cascade_zones(self) -> "Settings":

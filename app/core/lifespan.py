@@ -23,6 +23,7 @@ from app.services.rectification import RectificationService
 from app.services.segmenter import SegmenterService
 from app.services.siglip_embeddings import SigLIP2EmbeddingService
 from app.services.sommelier_service import SommelierService
+from app.services.twin_resolver import TwinResolver
 from app.sommelier.llm import GeminiLLM
 from app.sommelier.pairing import build_pairing_service
 from app.sommelier.pairing.catalog import RetailConfig
@@ -220,6 +221,11 @@ async def lifespan(app: FastAPI):
                 v1_weight=settings.cascade_v1_weight,
                 predict_threshold=settings.cascade_predict_threshold,
                 target_size=settings.canonical_size_v4,
+                images=images,
+                twin_resolver=TwinResolver(frame_size=settings.canonical_size_v4) if settings.enable_cascade_twin_resolver else None,
+                twin_semaphore=asyncio.Semaphore(settings.sift_concurrency),
+                twin_max_gap=settings.cascade_twin_max_gap,
+                twin_pool=settings.cascade_twin_pool,
             )
             await asyncio.to_thread(app.state.pipeline_cascade.warm_up)
             if p4 is not None:
