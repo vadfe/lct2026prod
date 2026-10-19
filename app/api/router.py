@@ -8,6 +8,7 @@ from app.api.search.v1.router import router as search_v1_router
 from app.api.search.v2.router import router as search_v2_router
 from app.api.search.v3.router import router as search_v3_router
 from app.api.search.v4.router import router as search_v4_router
+from app.api.sommelier.pairing_router import router as sommelier_pairing_router
 from app.api.sommelier.router import router as sommelier_router
 from app.api.twins.router import router as twins_router
 
@@ -22,3 +23,4 @@ router.include_router(search_v4_router)
 router.include_router(cascade_router)
 router.include_router(twins_router)
 router.include_router(sommelier_router)
+router.include_router(sommelier_pairing_router)

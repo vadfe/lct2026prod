@@ -1,0 +1,26 @@
+{
+  "version": "foreign-2026.10.18-1",
+  "comment": "Запасной справочник известных зарубежных вин и регионов для поиска российского аналога без LLM. С LLM свойства вина описывает модель; аналог в обоих случаях выбирает алгоритм среди российских вин каталога.",
+  "styles": [
+    {"keys": ["бордо", "bordeaux", "медок", "medoc", "марго", "margaux", "пойяк", "pauillac", "сент-эмильон", "saint-emilion", "шато"], "name": "Красное Бордо", "country": "Франция", "grapes": ["cabernet_sauvignon", "merlot"], "color": "Красное", "sweetness": "сухое", "oak": "да"},
+    {"keys": ["бургундия", "bourgogne", "burgundy", "кот-де-нюи", "жевре-шамбертен", "вон-романе", "поммар"], "name": "Красная Бургундия", "country": "Франция", "grapes": ["pinot_noir"], "color": "Красное", "sweetness": "сухое", "oak": "да"},
+    {"keys": ["шабли", "chablis"], "name": "Шабли", "country": "Франция", "grapes": ["chardonnay"], "color": "Белое", "sweetness": "сухое", "oak": "нет"},
+    {"keys": ["мерсо", "meursault", "пюлиньи", "монраше", "montrachet", "белая бургундия"], "name": "Белая Бургундия", "country": "Франция", "grapes": ["chardonnay"], "color": "Белое", "sweetness": "сухое", "oak": "да"},
+    {"keys": ["сансер", "sancerre", "пуйи-фюме", "pouilly-fume", "мальборо", "marlborough"], "name": "Совиньон Блан Луары / Мальборо", "country": "Франция", "grapes": ["sauvignon_blanc"], "color": "Белое", "sweetness": "сухое", "oak": "нет"},
+    {"keys": ["мозель", "mosel", "рейнгау", "rheingau", "эльзас", "alsace"], "name": "Рислинг Мозеля / Эльзаса", "country": "Германия", "grapes": ["riesling"], "color": "Белое", "sweetness": "полусухое", "oak": "нет"},
+    {"keys": ["асти", "asti", "москато", "moscato"], "name": "Москато д'Асти", "country": "Италия", "grapes": ["muscat_white"], "color": "Белое", "sweetness": "сладкое", "oak": "нет"},
+    {"keys": ["напа", "napa"], "name": "Каберне долины Напа", "country": "США", "grapes": ["cabernet_sauvignon"], "color": "Красное", "sweetness": "сухое", "oak": "да"},
+    {"keys": ["киндзмараули", "мукузани", "кахети", "kakheti", "саперави грузи"], "name": "Грузинское Саперави", "country": "Грузия", "grapes": ["saperavi"], "color": "Красное", "sweetness": "сухое", "oak": null},
+    {"keys": ["прованс", "provence"], "name": "Розовое Прованса", "country": "Франция", "grapes": [], "color": "Розовое", "sweetness": "сухое", "oak": "нет", "profile": {"tannins": 0.5, "acidity": 3, "body": 1.5}},
+    {"keys": ["кьянти", "chianti", "брунелло", "brunello", "санджовезе"], "name": "Кьянти", "country": "Италия", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": "да", "profile": {"tannins": 2.5, "acidity": 3, "body": 2.5}},
+    {"keys": ["бароло", "barolo", "барбареско", "barbaresco", "неббиоло"], "name": "Бароло", "country": "Италия", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": "да", "profile": {"tannins": 3, "acidity": 3, "body": 3}},
+    {"keys": ["риоха", "rioja", "темпранильо", "tempranillo", "рибера"], "name": "Риоха", "country": "Испания", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": "да", "profile": {"tannins": 2, "acidity": 2, "body": 2.5}},
+    {"keys": ["мальбек", "malbec", "мендоса", "mendoza"], "name": "Мальбек Мендосы", "country": "Аргентина", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": "да", "profile": {"tannins": 2.5, "acidity": 2, "body": 3}},
+    {"keys": ["шираз", "shiraz", "сира", "syrah", "баросса", "кот-дю-рон", "rhone"], "name": "Шираз / Сира", "country": "Австралия", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": "да", "profile": {"tannins": 2.5, "acidity": 2, "body": 3}},
+    {"keys": ["примитиво", "primitivo", "зинфандель", "zinfandel"], "name": "Примитиво", "country": "Италия", "grapes": [], "color": "Красное", "sweetness": "сухое", "oak": null, "profile": {"tannins": 2, "acidity": 2, "body": 3}},
+    {"keys": ["пино гриджо", "pinot grigio", "соаве", "soave"], "name": "Пино Гриджо", "country": "Италия", "grapes": [], "color": "Белое", "sweetness": "сухое", "oak": "нет", "profile": {"tannins": 0, "acidity": 3, "body": 1.5}},
+    {"keys": ["гевюрцтраминер", "gewurztraminer", "траминер"], "name": "Гевюрцтраминер", "country": "Франция", "grapes": [], "color": "Белое", "sweetness": "полусухое", "oak": "нет", "profile": {"tannins": 0, "acidity": 1.5, "body": 2.5}},
+    {"keys": ["грюнер", "gruner", "вельтлинер", "veltliner"], "name": "Грюнер Вельтлинер", "country": "Австрия", "grapes": [], "color": "Белое", "sweetness": "сухое", "oak": "нет", "profile": {"tannins": 0, "acidity": 3, "body": 1.5}},
+    {"keys": ["альбариньо", "albarino", "винью верде", "vinho verde"], "name": "Альбариньо", "country": "Испания", "grapes": [], "color": "Белое", "sweetness": "сухое", "oak": "нет", "profile": {"tannins": 0, "acidity": 3, "body": 1.5}}
+  ]
+}

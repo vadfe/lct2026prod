@@ -1,0 +1,340 @@
+{
+  "version": "grapes-2026.10.18-2",
+  "comment": "Дополнение к vine_tastes.csv (ТЗ «Доработка цифрового сомелье», п. 2.2–2.4). Профили сортов из таблицы берутся из CSV как есть; здесь — ключи, написания, сладость, дуб, структурированные правила и истории. Сорта со status=draft заполнены как черновик и не участвуют в выдаче до подписи эксперта-сомелье (signed_by).",
+  "grapes": [
+    {
+      "csv_name": "Каберне Совиньон",
+      "grape_id": "cabernet_sauvignon",
+      "aliases": ["Каберне Совиньон", "Каберне-Совиньон", "Cabernet Sauvignon"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "стейк", "tags": ["steak"], "weight": 1.0},
+        {"term": "твердые выдержанные сыры", "tags": ["hard_cheese"], "weight": 1.0},
+        {"term": "жареное мясо", "tags": ["fried_meat", "grilled_meat"], "weight": 1.0}
+      ],
+      "story": "Самый распространённый красный сорт мира родом из Бордо. В России его давно выращивают на Кубани, в Крыму и на Дону: плотные вина с тёмной ягодой и выраженными танинами.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Мерло",
+      "grape_id": "merlot",
+      "aliases": ["Мерло", "Merlot"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "птица", "tags": ["poultry"], "weight": 1.0},
+        {"term": "паста с мясным рагу", "tags": ["pasta_meat"], "weight": 1.0},
+        {"term": "пицца", "tags": ["pizza"], "weight": 1.0},
+        {"term": "мягкие сыры", "tags": ["soft_cheese"], "weight": 1.0}
+      ],
+      "story": "Мягкий красный сорт из Бордо с нотами сливы и вишни. Один из самых посаженных сортов в Крыму и на Кубани.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Пино Нуар",
+      "grape_id": "pinot_noir",
+      "aliases": ["Пино Нуар", "Пино-Нуар", "Пино чёрный", "Пино черный", "Pinot Noir"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "утка", "tags": ["duck"], "weight": 1.0},
+        {"term": "лосось", "tags": ["salmon"], "weight": 1.0},
+        {"term": "грибы", "tags": ["mushrooms"], "weight": 1.0},
+        {"term": "блюда с томатами", "tags": ["tomato"], "weight": 1.0}
+      ],
+      "story": "Капризный бургундский сорт с тонкой кожицей: светлые, кислотные вина с красной ягодой. В России удаётся в прохладных зонах — Севастополь, Тамань, Абрау.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Саперави",
+      "grape_id": "saperavi",
+      "aliases": ["Саперави", "Saperavi"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "шашлык", "tags": ["shashlik"], "weight": 1.0},
+        {"term": "хачапури", "tags": ["khachapuri"], "weight": 1.0},
+        {"term": "пряные мясные блюда", "tags": ["spicy_meat"], "weight": 1.0},
+        {"term": "сулугуни", "tags": ["suluguni"], "weight": 1.0},
+        {"term": "мясо на углях", "tags": ["grilled_meat"], "weight": 0.6}
+      ],
+      "story": "Грузинский сорт с окрашенной мякотью — вина почти чёрного цвета. Давно прижился в Дагестане, Крыму и на Кубани.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Красностоп Золотовский",
+      "grape_id": "krasnostop_zolotovsky",
+      "aliases": ["Красностоп Золотовский", "Красностоп", "Krasnostop Zolotovsky", "Krasnostop"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": true,
+      "cuisines": ["кавказская"],
+      "pairing_rules": [
+        {"term": "запеченное мясо", "tags": ["baked_meat"], "weight": 1.0},
+        {"term": "зрелые сыры", "tags": ["hard_cheese"], "weight": 1.0}
+      ],
+      "signature": "больше пряности",
+      "story": "Автохтон с Дона, назван по хутору Золотовскому. Плотное вино с ежевикой, перцем и пряностями, хорошо стареет в дубе.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Шардоне",
+      "grape_id": "chardonnay",
+      "aliases": ["Шардоне", "Chardonnay"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "oak_profile": {"да": {"body": "Полное"}, "нет": {"body": "Среднее"}},
+      "pairing_rules": [
+        {"term": "сливочные соусы", "tags": ["creamy_sauce"], "weight": 1.0, "when": {"oak": "да"}},
+        {"term": "курица", "tags": ["chicken"], "weight": 1.0, "when": {"oak": "да"}},
+        {"term": "жирная рыба", "tags": ["fatty_fish"], "weight": 1.0, "when": {"oak": "да"}},
+        {"term": "морепродукты", "tags": ["seafood"], "weight": 1.0, "when": {"oak": "нет"}}
+      ],
+      "story": "Белый сорт из Бургундии, который хорошо передаёт место и выдержку. В России его делают на Кубани и в Крыму — от свежих до выдержанных в дубе.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Рислинг",
+      "grape_id": "riesling",
+      "aliases": ["Рислинг", "Рислинг Рейнский", "Riesling"],
+      "sweetness_default": "полусухое",
+      "oak_variants": "нет",
+      "is_russian_origin": false,
+      "cuisines": ["азиатская"],
+      "pairing_rules": [
+        {"term": "острые блюда", "tags": ["spicy"], "weight": 1.0},
+        {"term": "соленые закуски", "tags": ["salty_snack"], "weight": 1.0}
+      ],
+      "story": "Рейнский сорт с яркой кислотностью и нотами цитруса и яблока. В России — один из старейших белых сортов Абрау и Тамани.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Совиньон Блан",
+      "grape_id": "sauvignon_blanc",
+      "aliases": ["Совиньон Блан", "Совиньон-Блан", "Совиньон", "Sauvignon Blanc"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "козий сыр", "tags": ["goat_cheese"], "weight": 1.0},
+        {"term": "салаты", "tags": ["salad"], "weight": 1.0},
+        {"term": "легкие морепродукты", "tags": ["light_seafood"], "weight": 1.0},
+        {"term": "спаржа", "tags": ["asparagus"], "weight": 1.0}
+      ],
+      "story": "Свежий сорт из долины Луары с травянистыми и цитрусовыми нотами. В России его делают в Крыму, на Кубани и на Дону.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    },
+    {
+      "csv_name": "Мускат (белый)",
+      "grape_id": "muscat_white",
+      "aliases": ["Мускат белый", "Мускат (белый)", "Мускат", "Muscat", "Moscato"],
+      "sweetness_default": "сладкое",
+      "oak_variants": "нет",
+      "is_russian_origin": false,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "фруктовые десерты", "tags": ["fruit_dessert"], "weight": 1.0},
+        {"term": "голубые сыры", "tags": ["blue_cheese"], "weight": 1.0},
+        {"term": "орехи", "tags": ["nuts"], "weight": 1.0}
+      ],
+      "story": "Один из древнейших сортов с ароматом цветов, винограда и мёда. Крымские десертные мускаты известны с XIX века.",
+      "status": "active",
+      "signed_by": "исходная таблица vine_tastes.csv"
+    }
+  ],
+  "russian_extension": [
+    {
+      "name": "Цимлянский чёрный",
+      "type": "Красное",
+      "tannins": "Средние/Высокие",
+      "acidity": "Средняя",
+      "body": "Среднее/Полное",
+      "pairing_text": "Плотное, но не грубое вино с вишней и пряностями. Идеально: баранина, донская кухня, шашлык, вяленое мясо.",
+      "grape_id": "tsimlyansky_cherny",
+      "aliases": ["Цимлянский чёрный", "Цимлянский черный", "Цимлянский", "Tsimlyansky Cherny"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": true,
+      "cuisines": ["русская"],
+      "pairing_rules": [
+        {"term": "баранина", "tags": ["lamb"], "weight": 1.0},
+        {"term": "шашлык", "tags": ["shashlik"], "weight": 1.0},
+        {"term": "вяленое мясо", "tags": ["cured_meat"], "weight": 1.0}
+      ],
+      "story": "Донской автохтон, основа знаменитого «Цимлянского игристого». В тихом сухом виде даёт пряное вино с вишней и мягкими танинами.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Сибирьковый",
+      "type": "Белое",
+      "tannins": "Нет (0)",
+      "acidity": "Средняя",
+      "body": "Среднее",
+      "pairing_text": "Сочное белое с нотами айвы и трав. Идеально: речная рыба, уха, раки, овощи на гриле.",
+      "grape_id": "sibirkovy",
+      "aliases": ["Сибирьковый", "Сибирьковий", "Sibirkovy"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": true,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "речная рыба", "tags": ["river_fish"], "weight": 1.0},
+        {"term": "уха", "tags": ["fish_soup"], "weight": 1.0},
+        {"term": "раки", "tags": ["crayfish"], "weight": 1.0},
+        {"term": "овощи на гриле", "tags": ["vegetables"], "weight": 0.6}
+      ],
+      "story": "Старинный донской белый сорт, почти исчезнувший в XX веке и возрождённый донскими виноделами. Ноты айвы, груши и луговых трав.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Кокур белый",
+      "type": "Белое",
+      "tannins": "Нет (0)",
+      "acidity": "Высокая",
+      "body": "Легкое/Среднее",
+      "pairing_text": "Свежая кислотность и нейтральный фруктовый тон. Идеально: морепродукты, белая рыба, лёгкие закуски.",
+      "grape_id": "kokur_bely",
+      "aliases": ["Кокур белый", "Кокур", "Kokur"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": true,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "морепродукты", "tags": ["seafood"], "weight": 1.0},
+        {"term": "белая рыба", "tags": ["white_fish"], "weight": 1.0},
+        {"term": "легкие закуски", "tags": ["salty_snack"], "weight": 0.6}
+      ],
+      "story": "Крымский сорт Судакской долины. Из него делают и свежие сухие вина, и знаменитые крымские десертные и крепкие вина.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Пухляковский",
+      "type": "Белое",
+      "tannins": "Нет (0)",
+      "acidity": "Средняя",
+      "body": "Легкое/Среднее",
+      "pairing_text": "Мягкое белое с нотами яблока и цветов. Идеально: птица, речная рыба, салаты, мягкие сыры.",
+      "grape_id": "pukhlyakovsky",
+      "aliases": ["Пухляковский", "Пухляковский белый", "Pukhlyakovsky"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": true,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "птица", "tags": ["poultry"], "weight": 0.6},
+        {"term": "речная рыба", "tags": ["river_fish"], "weight": 1.0},
+        {"term": "салаты", "tags": ["salad"], "weight": 1.0},
+        {"term": "мягкие сыры", "tags": ["soft_cheese"], "weight": 0.6}
+      ],
+      "story": "Донской белый сорт с хутора Пухляковский. Нуждается в опылителе, поэтому редок; даёт мягкие вина с яблоком и цветами.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Голубок",
+      "type": "Красное",
+      "tannins": "Средние",
+      "acidity": "Средняя",
+      "body": "Полное",
+      "pairing_text": "Насыщенное вино с окрашенной мякотью, тёмной ягодой и мягкими танинами. Идеально: мясо на углях, запечённое мясо, твёрдые сыры.",
+      "grape_id": "golubok",
+      "aliases": ["Голубок", "Golubok"],
+      "sweetness_default": "сухое",
+      "oak_variants": "оба",
+      "is_russian_origin": true,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "мясо на углях", "tags": ["grilled_meat"], "weight": 1.0},
+        {"term": "запеченное мясо", "tags": ["baked_meat"], "weight": 1.0},
+        {"term": "твердые сыры", "tags": ["hard_cheese"], "weight": 0.6}
+      ],
+      "story": "Сорт-красильщик, выведенный в Новочеркасске. Даёт почти чёрное вино с ежевикой; популярен на Дону, Кубани и в Крыму.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Рислинг российских регионов",
+      "type": "Белое",
+      "tannins": "Нет (0)",
+      "acidity": "Высокая",
+      "body": "Легкое",
+      "pairing_text": "Сухой стиль с яркой кислотностью и цитрусом. Идеально: рыба, морепродукты, азиатская кухня, солёные закуски.",
+      "grape_id": "riesling_ru",
+      "aliases": ["Рислинг российских регионов", "Рислинг Абрау", "Рислинг Тамани"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": true,
+      "cuisines": ["азиатская"],
+      "pairing_rules": [
+        {"term": "рыба", "tags": ["white_fish"], "weight": 1.0},
+        {"term": "морепродукты", "tags": ["seafood"], "weight": 0.6},
+        {"term": "солёные закуски", "tags": ["salty_snack"], "weight": 1.0}
+      ],
+      "story": "Стиль, а не отдельный сорт: Рислинг Абрау, Тамани и Крыма обычно суше и строже немецкого, с цитрусом и минеральностью.",
+      "status": "draft",
+      "signed_by": null
+    },
+    {
+      "name": "Алиготе российских регионов",
+      "type": "Белое",
+      "tannins": "Нет (0)",
+      "acidity": "Высокая",
+      "body": "Легкое",
+      "pairing_text": "Лёгкое кислотное белое с зелёным яблоком. Идеально: устрицы, морепродукты, салаты, козий сыр.",
+      "grape_id": "aligote_ru",
+      "aliases": ["Алиготе", "Алиготе российских регионов", "Aligote"],
+      "sweetness_default": "сухое",
+      "oak_variants": "нет",
+      "is_russian_origin": true,
+      "cuisines": [],
+      "pairing_rules": [
+        {"term": "устрицы", "tags": ["oysters"], "weight": 1.0},
+        {"term": "морепродукты", "tags": ["light_seafood"], "weight": 1.0},
+        {"term": "салаты", "tags": ["salad"], "weight": 0.6},
+        {"term": "козий сыр", "tags": ["goat_cheese"], "weight": 0.6}
+      ],
+      "story": "Стиль российского Алиготе: бургундский сорт, один из самых массовых белых в Крыму и на Кубани с советских времён. Свежий, кислотный, с яблоком.",
+      "status": "draft",
+      "signed_by": null
+    }
+  ],
+  "geo": {
+    "Россия": ["Кубань", "Крым", "Севастополь", "Дон", "Дагестан", "Ставрополье", "Кабардино-Балкария", "Северная Осетия", "Волгоград", "Чечня"],
+    "Франция": ["Бордо", "Бургундия", "Долина Луары", "Долина Роны", "Эльзас", "Шампань", "Лангедок"],
+    "Италия": ["Пьемонт", "Тоскана", "Венето", "Сицилия", "Апулия", "Абруццо"],
+    "Испания": ["Риоха", "Рибера-дель-Дуэро", "Каталония", "Ла-Манча"],
+    "Германия": ["Мозель", "Рейнгау", "Пфальц"],
+    "Грузия": ["Кахетия", "Имерети", "Рача-Лечхуми"],
+    "Чили": ["Центральная долина", "Колчагуа", "Майпо"],
+    "Аргентина": ["Мендоса"],
+    "Новая Зеландия": ["Мальборо", "Хокс-Бей"],
+    "Абхазия": ["Абхазия"],
+    "Армения": ["Арарат", "Вайоц-Дзор"],
+    "Португалия": ["Дору", "Алентежу", "Винью-Верде"],
+    "ЮАР": ["Стелленбос", "Западный Кейп"],
+    "Австралия": ["Баросса", "Южная Австралия"]
+  }
+}
