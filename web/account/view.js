@@ -260,8 +260,8 @@ function summaryCard(m, go) {
     chips.append(
         chip(0, artSvg('vine', m.stage.key, { size: 34 }), `${Math.round(m.progress * 100)}%`,
             `Путь лозы: «${m.stage.title}», ${m.points} из ${VINE_FULL_POINTS} очков`),
-        chip(1, artSvg('fruits', m.fruit.key, { size: 34 }), m.fruit.title,
-            `Ваш фрукт: ${m.fruit.title} — ${m.fruit.color.toLowerCase()}, ${m.fruit.sugar}`),
+        chip(1, artSvg('fruits', m.fruit.key, { size: 34 }), SUGAR_SHORT[m.fruit.sugar],
+            `Ваши предпочтения: ${m.fruit.color.toLowerCase()} ${m.fruit.sugar} (${m.fruit.title.toLowerCase()})`),
         chip(2, artSvg('regions', (earnedRegions[0] || m.regions[0]).key, { size: 34, locked: !earnedRegions.length }), `${earnedRegions.length} / ${m.regions.length}`,
             earnedRegions.length ? `Региональные символы: ${earnedRegions.map(r => r.title).join(', ')}` : 'Региональные символы: пока ни одного'),
         chip(3, statusArt, `${earnedStatuses.length} / ${m.statuses.length}`,
@@ -325,8 +325,7 @@ function vineSlide(m) {
 
 function tasteSlide(m) {
     const fruit = m.fruit;
-    const box = card('Фруктовая палитра', `Ваш фрукт: ${fruit.title}`);
-    box.append(el('div', 'acc-muted', `${fruit.color.toLowerCase()}, ${fruit.sugar}`));
+    const box = card('Фруктовая палитра', `Ваши предпочтения в винах: ${fruit.color.toLowerCase()} ${fruit.sugar}`);
     if (m.shifts.length) {
         const note = el('div', 'acc-shift');
         note.append(el('b', '', 'Профиль сместился: '), document.createTextNode(m.shifts.join('; ')));
@@ -342,7 +341,8 @@ function tasteSlide(m) {
             const cell = el('div', `acc-palette-cell${f.key === fruit.key ? ' main' : ''}`);
             cell.style.setProperty('--w', w.toFixed(2));
             cell.title = `${f.title}: ${color.toLowerCase()}, ${sugar}`;
-            cell.append(artSvg('fruits', f.key, { size: 38, locked: w === 0 }), el('span', '', SUGAR_SHORT[sugar]));
+            // цветной — только выбранный фрукт; остальные серые, тягу профиля показывает подсветка фона (--w)
+            cell.append(artSvg('fruits', f.key, { size: 38, locked: f.key !== fruit.key }), el('span', '', SUGAR_SHORT[sugar]));
             grid.append(cell);
         });
     });
