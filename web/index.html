@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Своё Вино | Сканер</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="vina.css">
 </head>
 <body>
@@ -66,10 +66,29 @@
                 </label>
             </div>
 
-            <details class="thresholds" id="thresholds">
-                <summary>Как выбирается ответ</summary>
-                <div id="thresholds-body">Загрузка порогов…</div>
-            </details>
+            <!-- Вино к блюду (С1, С4, С5) и аналог зарубежного вина: только российские вина каталога -->
+            <section class="section-card pairing-section" id="pairing-section">
+                <h3>Вино к блюду</h3>
+                <p>Напишите блюдо, повод или зарубежное вино, которое любите, — сомелье подберёт российские вина из каталога.</p>
+                <form class="ask-form" id="pairing-form">
+                    <input type="text" id="pairing-query" maxlength="300" placeholder="Например: к шашлыку, не сладкое · аналог Шабли">
+                    <button type="submit" class="btn btn-primary">Подобрать</button>
+                </form>
+                <div class="pairing-filters">
+                    <select id="pairing-scenario" aria-label="Что подбираем">
+                        <option value="dish">К блюду</option><option value="gift">Подарок</option><option value="analog">Аналог зарубежного вина</option>
+                    </select>
+                    <select id="pairing-color" aria-label="Цвет">
+                        <option value="">Любой цвет</option><option>Красное</option><option>Белое</option><option>Розовое</option>
+                    </select>
+                    <select id="pairing-sweetness" aria-label="Сладость">
+                        <option value="">Любая сладость</option><option value="сухое,полусухое">Не сладкое</option><option value="сухое">Сухое</option>
+                        <option value="полусухое">Полусухое</option><option value="полусладкое,сладкое">Сладкое</option>
+                    </select>
+                    <input type="number" id="pairing-budget" min="100" step="100" placeholder="Бюджет, ₽" aria-label="Бюджет">
+                </div>
+                <div class="somm-answer" id="pairing-result"></div>
+            </section>
 
             <div class="link-row mt-10">
                 <a href="add.html" id="link-add">Добавить вино в каталог</a>
@@ -125,8 +144,6 @@
             <!-- Ответ каскада: найдено / похоже / нет в каталоге -->
             <section class="status-banner" id="status-banner">
                 <div class="status-title" id="status-title"></div>
-                <div class="status-reason" id="status-reason"></div>
-                <div class="status-meta" id="status-meta"></div>
             </section>
 
             <div id="wine-block">
@@ -205,6 +222,12 @@
                     <div class="somm-text somm-answer hidden" id="about-answer"></div>
                 </section>
 
+                <!-- Что к этой бутылке (С2) и «Похожее, но российское» (С3) — по справочнику сортов -->
+                <section class="section-card mt-10" id="wine-pairing-section" style="margin-top: 24px;">
+                    <h3>Подойдёт к блюдам</h3>
+                    <div id="wine-pairing"></div>
+                </section>
+
                 <section class="section-card mt-10" id="alternatives-section" style="margin-top: 24px;">
                     <h3>Похожие вина из каталога</h3>
                     <p>Подобраны сомелье по стилю: цвет, сладость, сорт, регион.</p>
@@ -280,6 +303,21 @@
                         <button id="btn-save-settings" class="btn btn-primary">Сохранить</button>
                     </div>
                     <button id="btn-reset-local" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:12px;">Сбросить на этот сервер</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Возрастной барьер 18+ при первом входе в функции сомелье -->
+        <div id="age-modal" class="modal hidden">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header"><h3>Вам есть 18 лет?</h3></div>
+                <div class="modal-body">
+                    <p class="settings-hint">Сомелье рассказывает о сочетаниях вина и еды. Это информационный сервис: он не продаёт алкоголь и не оформляет заказы.</p>
+                    <div class="modal-actions">
+                        <button id="btn-age-no" class="btn btn-secondary">Нет</button>
+                        <button id="btn-age-yes" class="btn btn-primary">Да, мне есть 18</button>
+                    </div>
                 </div>
             </div>
         </div>

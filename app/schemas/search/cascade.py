@@ -24,8 +24,9 @@ class CascadeCandidate(BaseModel):
 class CascadeDecision(BaseModel):
     status: str  # "found" | "probable" | "not_in_catalog"
     similarity: float | None = None  # SigLIP 2 similarity of the best candidate
-    margin: float | None = None  # fusion score gap between the first and the second candidate
+    margin: float | None = None  # fusion score gap between the first and the second candidate (before the twin stage)
     reason: str
+    twin_resolution: str | None = None  # verdict of the twin stage; None when the top candidates are not same-producer twins
 
 
 class CascadeTimings(BaseModel):
@@ -33,6 +34,7 @@ class CascadeTimings(BaseModel):
     query_prep_ms: float
     v1_total_ms: float
     v4_total_ms: float | None = None
+    twin_ms: float | None = None
     total_ms: float
 
 

@@ -15,6 +15,9 @@ python -m pytest tests/test_sommelier.py -q
 Зависимость движка — только `pandas`. Для необязательного LLM-слоя (Google Gemini, без доп. пакетов): `GOOGLE_API_KEY` и `SOMMELIER_LLM_MODEL`
 в `.env` (см. `docs/SOMMELIER.md`).
 
+Подбор «блюдо → сорт → бутылка» (справочник сортов, CatalogProvider, только российские вина, аналоги зарубежных) — подпакет `pairing/`, описан в
+[`docs/SOMMELIER_PAIRING.md`](../../docs/SOMMELIER_PAIRING.md).
+
 ## Пять слоёв
 | Слой | Файл | Что делает |
 |---|---|---|

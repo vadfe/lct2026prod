@@ -13,6 +13,7 @@ from PIL import Image
 from app.db.models.product import ProductEmbedding, ProductEmbeddingV4
 from app.pipelines.search.cascade.decision import FOUND, NOT_IN_CATALOG, PROBABLE, RecognitionThresholds, classify
 from app.pipelines.search.cascade.pipeline import CascadeSearchPipeline
+from app.services.twin_resolver import TwinResolution
 
 THRESHOLDS = RecognitionThresholds(found_min_similarity=0.83, found_min_margin=0.15, reject_below_similarity=0.485)
 
@@ -189,7 +190,84 @@ def test_warm_up_runs_every_model_once():
 
 
 # ---------------------------------------------------------------------------
-# 3. Thresholds: API and configuration
+# 3. Twin stage
+# ---------------------------------------------------------------------------
+
+
+class FakeImages:
+    def resolve(self, relative_path: str):
+        return relative_path
+
+
+class FakeTwinResolver:
+    """Records which references it got; answers with a fixed order (indices of the references)."""
+
+    def __init__(self, order: list[int] | None, fail: bool = False):
+        self.order = order
+        self.fail = fail
+        self.calls: list[int] = []
+
+    def resolve(self, query, references, key=None):
+        if self.fail:
+            raise RuntimeError("broken")
+        self.calls.append(len(references))
+        return TwinResolution(self.order, None, "выбран" if self.order else "не различимы")
+
+
+def make_twin_pipeline(resolver: FakeTwinResolver, monkeypatch, max_gap: float = 0.15) -> CascadeSearchPipeline:
+    pipeline = make_pipeline()
+    pipeline.images = FakeImages()
+    pipeline.twin_resolver = resolver
+    pipeline.twin_max_gap = max_gap
+    monkeypatch.setattr(CascadeSearchPipeline, "_load_reference", lambda self, path: IMAGE)
+    return pipeline
+
+
+@pytest.mark.asyncio
+async def test_twin_stage_reorders_same_producer_twins_and_keeps_the_zone(monkeypatch):
+    resolver = FakeTwinResolver(order=[1, 0])
+    repository = twins_repository(v4_rose_sira=0.92, v4_rose=0.91)
+    baseline = await make_pipeline().run(IMAGE, repository, k=3)
+    response = await make_twin_pipeline(resolver, monkeypatch).run(IMAGE, repository, k=3)
+    assert resolver.calls == [2]  # «merlot» of another producer is not a twin
+    assert [c.slug for c in response.final_results] == ["rose", "rose-sira", "merlot"]
+    assert [c.rank for c in response.final_results] == [1, 2, 3]
+    assert response.winner.slug == "rose"
+    assert response.confidence == pytest.approx(0.91)
+    # thresholds and zones are untouched: the margin is the fusion gap before the twin stage
+    assert response.status == baseline.status == PROBABLE
+    assert response.decision.margin == baseline.decision.margin
+    assert response.decision.twin_resolution == "выбран"
+    assert response.timings.twin_ms is not None
+    assert (await make_twin_pipeline(resolver, monkeypatch).predict_top1(IMAGE, repository)).slug == "rose"
+
+
+@pytest.mark.asyncio
+async def test_twin_stage_keeps_order_when_twins_are_not_distinguishable(monkeypatch):
+    response = await make_twin_pipeline(FakeTwinResolver(order=None), monkeypatch).run(IMAGE, twins_repository(0.92, 0.91), k=3)
+    assert [c.slug for c in response.final_results] == ["rose-sira", "rose", "merlot"]
+    assert response.decision.twin_resolution == "не различимы"
+
+
+@pytest.mark.asyncio
+async def test_twin_stage_skips_distant_runner_up(monkeypatch):
+    resolver = FakeTwinResolver(order=[1, 0])
+    response = await make_twin_pipeline(resolver, monkeypatch).run(IMAGE, twins_repository(v4_rose_sira=0.70, v4_rose=0.95), k=3)
+    assert resolver.calls == []
+    assert response.winner.slug == "rose"
+    assert response.decision.twin_resolution is None
+    assert response.timings.twin_ms is None
+
+
+@pytest.mark.asyncio
+async def test_twin_stage_error_keeps_fusion_order(monkeypatch):
+    response = await make_twin_pipeline(FakeTwinResolver(order=None, fail=True), monkeypatch).run(IMAGE, twins_repository(0.92, 0.91), k=3)
+    assert response.winner.slug == "rose-sira"
+    assert "ошибки" in response.decision.twin_resolution
+
+
+# ---------------------------------------------------------------------------
+# 4. Thresholds: API and configuration
 # ---------------------------------------------------------------------------
 
 

@@ -15,6 +15,12 @@ def test_only_search_is_versioned():
     assert "/api/sommelier/ask" in paths
     assert "/api/sommelier/wine/{slug}" in paths
     assert "/api/sommelier/wine/{slug}/alternatives" in paths
+    assert "/api/sommelier/pairing/dish" in paths
+    assert "/api/sommelier/pairing/wine/{slug}" in paths
+    assert "/api/sommelier/similar/{grape_id}" in paths
+    assert "/api/sommelier/health" in paths
+    assert "/api/sommelier/analog" in paths
+    assert "/api/v1/pairing/dish" not in paths
     assert "/api/cascade/predict" in paths
     assert "/api/v1/products" not in paths
     assert "/api/search" not in paths
