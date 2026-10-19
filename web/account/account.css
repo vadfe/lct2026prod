@@ -26,23 +26,23 @@
 .acc-kicker { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--acc-muted); }
 .acc-title { font-family: var(--acc-serif); font-size: 20px; font-weight: 600; line-height: 1.25; margin: 4px 0 6px; color: var(--acc-ink); }
 .acc-name { font-family: var(--acc-serif); font-size: 22px; font-weight: 600; margin: 0; }
-.acc-muted { font-size: 12px; color: var(--acc-muted); line-height: 1.4; }
+.acc-muted { font-size: 13px; color: var(--acc-muted); line-height: 1.4; }
 .acc-lead { font-size: 14px; color: var(--acc-ink-2); line-height: 1.5; margin: 6px 0 12px; }
 .acc-note { font-size: 12px; color: var(--acc-muted); margin-top: 10px; }
 .acc-caption { font-family: var(--acc-serif); font-style: italic; font-size: 15px; color: var(--acc-wine); margin: 0 0 10px; }
-.acc-rule { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--acc-line); font-size: 12px; color: var(--acc-muted); line-height: 1.45; }
+.acc-rule { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--acc-line); font-size: 13px; color: var(--acc-muted); line-height: 1.45; }
 .acc-big { font-family: var(--acc-serif); font-size: 26px; font-weight: 600; color: var(--acc-ink); line-height: 1; }
 
 /* кнопки */
 .acc-btn {
     display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--acc-line);
-    background: #fff; color: var(--acc-ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: #fff; color: var(--acc-ink-2); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
 }
 .acc-btn:hover { border-color: var(--acc-wine-line); background: var(--acc-wine-soft); }
 .acc-btn.primary { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; }
 .acc-btn.primary:disabled { opacity: .45; cursor: default; }
 .acc-btn.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); }
-.acc-btn.small { padding: 6px 10px; font-size: 12px; border-radius: 10px; }
+.acc-btn.small { padding: 8px 12px; font-size: 14px; border-radius: 10px; }
 .acc-btn.danger { color: #9a4f4c; }
 .acc-actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 
@@ -78,16 +78,16 @@
     transition: width .6s cubic-bezier(.2, .7, .2, 1);
 }
 .acc-stages { display: flex; justify-content: space-between; margin-top: 12px; }
-.acc-stage { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--acc-muted); padding: 4px; border-radius: 12px; }
+.acc-stage { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--acc-muted); padding: 4px; border-radius: 12px; }
 .acc-stage.current { background: var(--acc-wine-soft); color: var(--acc-wine); font-weight: 600; }
 
 /* палитра */
 .acc-shift { margin: 8px 0 4px; padding: 8px 10px; border-radius: 12px; background: #fbf2e3; color: #96692c; font-size: 13px; }
-.acc-palette { display: grid; grid-template-columns: 64px repeat(4, 1fr); gap: 6px; margin-top: 10px; align-items: stretch; }
+.acc-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; align-items: stretch; }
 .acc-palette-head { font-size: 10px; color: var(--acc-muted); text-align: center; align-self: end; }
 .acc-palette-row { font-size: 11px; font-weight: 600; color: var(--acc-ink-2); align-self: center; }
 .acc-palette-cell {
-    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 12px; font-size: 10px; color: var(--acc-ink-2);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 12px; font-size: 13px; font-weight: 600; color: var(--acc-ink-2);
     background: color-mix(in srgb, var(--acc-wine-soft) calc(var(--w, 0) * 100%), #faf8f6); border: 1px solid transparent;
 }
 .acc-palette-cell.main { border-color: var(--acc-wine); background: var(--acc-wine-soft); font-weight: 700; color: var(--acc-wine); }
@@ -95,7 +95,7 @@
 /* регионы */
 .acc-regions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
 .acc-region { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
-.acc-region-title { font-size: 12px; font-weight: 600; color: var(--acc-ink-2); line-height: 1.25; }
+.acc-region-title { font-size: 13px; font-weight: 600; color: var(--acc-ink-2); line-height: 1.25; }
 .acc-region:not(.earned) .acc-region-title { color: var(--acc-muted); }
 
 /* статусы */
@@ -104,7 +104,7 @@
 .acc-status-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .acc-status-title { font-family: var(--acc-serif); font-size: 17px; font-weight: 600; }
 .acc-status:not(.earned) .acc-status-title { color: var(--acc-muted); }
-.acc-status-count { font-size: 12px; font-weight: 600; color: var(--acc-ink-2); }
+.acc-status-count { font-size: 13px; font-weight: 600; color: var(--acc-ink-2); }
 .acc-status.earned .acc-status-count { color: #4f7a4b; }
 
 /* рекомендации и списки */
@@ -116,14 +116,14 @@
 .acc-rec:hover, .acc-row:hover { border-color: var(--acc-wine-line); background: var(--acc-wine-soft); }
 .acc-rec-text, .acc-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .acc-rec-title, .acc-row-title { font-family: var(--acc-serif); font-size: 15px; font-weight: 600; color: var(--acc-ink); overflow-wrap: anywhere; }
-.acc-rec-note { font-size: 12px; color: #4f7a4b; }
-.acc-row-meta { font-size: 12px; color: var(--acc-ink-2); }
+.acc-rec-note { font-size: 13px; color: #4f7a4b; }
+.acc-row-meta { font-size: 13px; color: var(--acc-ink-2); }
 .acc-thumb { width: 52px; height: 64px; flex-shrink: 0; object-fit: contain; border-radius: 10px; background: #faf5e6; }
 .acc-thumb.empty { display: block; }
 .acc-tabs { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
 .acc-tab {
     flex-shrink: 0; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
-    font: inherit; font-size: 13px; color: var(--acc-ink-2); cursor: pointer;
+    font: inherit; font-size: 15px; color: var(--acc-ink-2); cursor: pointer;
 }
 .acc-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
 
@@ -141,13 +141,13 @@
 .acc-sheet-head { display: flex; gap: 12px; align-items: flex-start; padding-right: 36px; margin-bottom: 10px; }
 .acc-sheet-head .acc-thumb { width: 72px; height: 96px; }
 .acc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.acc-tag { padding: 3px 9px; border-radius: 999px; background: #faf7f4; border: 1px solid var(--acc-line); font-size: 12px; color: var(--acc-ink-2); }
+.acc-tag { padding: 4px 10px; border-radius: 999px; background: #faf7f4; border: 1px solid var(--acc-line); font-size: 13px; color: var(--acc-ink-2); }
 .acc-textarea {
     width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--acc-line); background: #fff;
     font: inherit; font-size: 14px; line-height: 1.45; color: var(--acc-ink); resize: vertical;
 }
 .acc-textarea:focus { outline: 2px solid var(--acc-wine-line); border-color: var(--acc-wine); }
-.acc-counter { font-size: 12px; color: #96692c; margin-top: 4px; }
+.acc-counter { font-size: 13px; color: #96692c; margin-top: 4px; }
 .acc-counter.ok { color: #4f7a4b; }
 
 /* сводка под шапкой */
@@ -158,7 +158,7 @@
 .acc-sum-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
 .acc-sum-chip {
     display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding: 6px 2px; min-width: 0;
-    border: 1px solid var(--acc-line); border-radius: 14px; background: #faf8f6; font: inherit; font-size: 11px; font-weight: 600;
+    border: 1px solid var(--acc-line); border-radius: 14px; background: #faf8f6; font: inherit; font-size: 14px; font-weight: 600;
     color: var(--acc-ink-2); cursor: pointer;
 }
 .acc-sum-chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -169,14 +169,14 @@
 .acc-slide-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .acc-slide-nav::-webkit-scrollbar { display: none; }
 .acc-slide-tab {
-    flex-shrink: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
-    font: inherit; font-size: 13px; color: var(--acc-ink-2); cursor: pointer;
+    flex-shrink: 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
+    font: inherit; font-size: 15px; color: var(--acc-ink-2); cursor: pointer;
 }
 .acc-slide-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
-/* Все карточки карусели одной высоты по видимой высоте телефона (шапка, сводка, вкладки и точки остаются на экране);
+/* Все карточки карусели одной высоты — около половины экрана телефона, чтобы под ними был виден погреб / рецензии / история;
    длинное содержимое прокручивается внутри карточки */
-.acc-carousel { --acc-slide-h: clamp(380px, calc(100vh - 300px), 600px); }
-@supports (height: 100dvh) { .acc-carousel { --acc-slide-h: clamp(380px, calc(100dvh - 300px), 600px); } }
+.acc-carousel { --acc-slide-h: clamp(300px, 50vh, 440px); }
+@supports (height: 100dvh) { .acc-carousel { --acc-slide-h: clamp(300px, 50dvh, 440px); } }
 .acc-track {
     display: flex; gap: 12px; height: var(--acc-slide-h); overflow-x: auto; overflow-y: hidden;
     scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -192,7 +192,7 @@
 .acc-dot.on { width: 20px; border-radius: 999px; background: var(--acc-wine); }
 
 /* квиз — палитра с выбором */
-.acc-quiz-grid .acc-palette-cell.pick { cursor: pointer; font: inherit; font-size: 10px; background: #faf8f6; border: 1px solid var(--acc-line); }
+.acc-quiz-grid .acc-palette-cell.pick { cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; background: #faf8f6; border: 1px solid var(--acc-line); }
 .acc-quiz-grid .acc-palette-cell.pick .acc-art { opacity: .55; }
 .acc-quiz-grid .acc-palette-cell.pick.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); font-weight: 700; }
 .acc-quiz-grid .acc-palette-cell.pick.on .acc-art { opacity: 1; }
@@ -206,13 +206,29 @@
 
 /* подсказка «Как пользоваться» */
 .acc-guide summary { cursor: pointer; font-family: var(--acc-serif); font-size: 16px; font-weight: 600; color: var(--acc-wine); }
-.acc-guide-list { margin: 10px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--acc-ink-2); }
+.acc-guide-list { margin: 10px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.45; color: var(--acc-ink-2); }
+
+/* аватар (меню профиля) и «?» (подсказка) */
+.acc-profile-head { position: relative; }
+.acc-avatar { padding: 0; border: none; background: none; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+button.acc-profile-who { flex: 1; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.acc-help {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--acc-wine-line); background: var(--acc-wine-soft);
+    color: var(--acc-wine); font: inherit; font-family: var(--acc-serif); font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.acc-login { position: relative; }
+.acc-login > .acc-help { position: absolute; top: 12px; right: 12px; }
+.acc-menu { display: flex; flex-direction: column; margin-top: 14px; border-top: 1px solid var(--acc-line); }
+.acc-menu-item {
+    padding: 14px 4px; border: none; border-bottom: 1px solid var(--acc-line); background: none; text-align: left;
+    font: inherit; font-size: 16px; color: var(--acc-ink); cursor: pointer;
+}
+.acc-menu-item.danger { color: #9a4f4c; }
 
 /* кнопки кабинета в карточке распознанного вина */
 .acc-wine-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
 
 @media (max-width: 380px) {
-    .acc-palette { grid-template-columns: 52px repeat(4, 1fr); gap: 4px; }
-    .acc-palette-cell span { font-size: 9px; }
+    .acc-palette { gap: 4px; }
     .acc-regions { grid-template-columns: repeat(2, 1fr); }
 }

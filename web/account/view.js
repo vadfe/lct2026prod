@@ -3,7 +3,7 @@
 // Всё хранится только в браузере (store.js); сервер вызывается лишь за справкой о вине и похожими винами.
 import { artSvg } from './art.js';
 import {
-    COLORS, DISLIKE_RATING, GUIDE, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_PAGE, RECS_SEEDS, REVIEW_MIN_CHARS, SUGARS, TEXTS,
+    COLORS, DISLIKE_RATING, GUIDE, LIKE_RATING, POINTS, PROVIDERS, RECS_LIMIT, RECS_PAGE, RECS_SEEDS, REVIEW_MIN_CHARS, SUGAR_SHORT, SUGARS, TEXTS,
     VINE_FULL_POINTS, VINE_STAGES, WEIGHTS,
 } from './config.js';
 import * as store from './store.js';
@@ -117,20 +117,68 @@ function renderAccount() {
     if (track) later(() => { track.scrollLeft = slideIndex * track.clientWidth; });
 }
 
-function guideBlock(open = false) {
-    const box = el('details', 'acc-card acc-guide');
-    if (open) box.open = true;
-    box.append(el('summary', '', 'Как пользоваться кабинетом'));
+// Нижнее окно поверх любого экрана: карточка вина, подсказка, меню профиля
+function openSheet(label) {
+    closeModal();
+    const modal = el('div', 'acc-modal');
+    modal.id = 'acc-modal';
+    const backdrop = el('div', 'acc-modal-backdrop');
+    backdrop.addEventListener('click', closeModal);
+    const sheet = el('div', 'acc-sheet');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', label);
+    sheet.append(button('acc-close', '×', closeModal));
+    modal.append(backdrop, sheet);
+    document.body.append(modal);
+    return sheet;
+}
+
+function openGuide() {
+    const sheet = openSheet('Как пользоваться кабинетом');
+    sheet.append(el('div', 'acc-kicker', 'Подсказка'), el('h3', 'acc-title', 'Как пользоваться кабинетом'));
     const list = el('ol', 'acc-guide-list');
     GUIDE.forEach(line => list.append(el('li', '', line)));
-    box.append(list);
-    return box;
+    sheet.append(list);
+}
+
+function helpButton() {
+    const btn = button('acc-help', '?', openGuide);
+    btn.title = 'Как пользоваться кабинетом';
+    btn.setAttribute('aria-label', 'Как пользоваться кабинетом');
+    return btn;
+}
+
+// Меню профиля — по нажатию на аватар: всё, что касается личных данных
+function openProfileMenu() {
+    const account = store.getAccount();
+    const sheet = openSheet('Профиль');
+    const head = el('div', 'acc-profile-head');
+    head.append(artSvg('ui', 'account', { size: 48 }));
+    const who = el('div', 'acc-profile-who');
+    who.append(el('div', 'acc-name', account.name), el('div', 'acc-muted',
+        `Вход через ${PROVIDERS[account.provider] ? PROVIDERS[account.provider].title : account.provider} · демо, данные только на этом устройстве`));
+    head.append(who);
+    const menu = el('div', 'acc-menu');
+    const item = (text, onClick, extra = '') => button(`acc-menu-item${extra}`, text, () => { closeModal(); onClick(); });
+    menu.append(
+        item('Пройти квиз заново', () => { quizEditing = true; renderAccount(); }),
+        item('Изменить имя', () => {
+            const name = window.prompt('Как к вам обращаться?', account.name);
+            if (name !== null) { store.setName(name); refreshAll(); }
+        }),
+        item('Как пользоваться', openGuide),
+        item('Выйти', () => { store.logout(); refreshAll(); }),
+        item('Удалить мои данные', () => {
+            if (window.confirm('Удалить профиль, историю, погреб и рецензии с этого устройства?')) { store.wipe(); refreshAll(); }
+        }, ' danger'),
+    );
+    sheet.append(head, menu);
 }
 
 function loginCard() {
     const box = card('Личный кабинет', 'Войдите в один клик');
     box.classList.add('acc-login');
-    box.prepend(artSvg('vine', 'golden', { size: 96 }));
+    box.prepend(artSvg('vine', 'golden', { size: 96 }), helpButton());
     box.append(el('p', 'acc-lead', TEXTS.loginLead));
     Object.entries(PROVIDERS).forEach(([key, provider]) => {
         box.append(button(`acc-provider ${key}`, `Войти через ${provider.title}`, () => {
@@ -139,9 +187,7 @@ function loginCard() {
         }, artSvg('ui', key, { size: 28 })));
     });
     box.append(el('p', 'acc-note', TEXTS.stubNote));
-    const stack = el('div', 'acc-stack');
-    stack.append(box, guideBlock());
-    return stack;
+    return box;
 }
 
 // Квиз — та же фруктовая палитра, что в кабинете: каждый фрукт = цвет × сладость
@@ -151,8 +197,6 @@ function quizCard() {
     const box = card('Первичная настройка', 'Какое вино вам по вкусу?');
     box.append(el('p', 'acc-lead', TEXTS.quizLead));
     const grid = el('div', 'acc-palette acc-quiz-grid');
-    grid.append(el('div', ''));
-    SUGARS.forEach(s => grid.append(el('div', 'acc-palette-head', s)));
     const save = button('acc-btn primary', 'Сохранить', () => {
         store.setQuiz([...grid.querySelectorAll('.acc-palette-cell.on')].map(c => c.dataset.cell));
         quizEditing = false;
@@ -160,17 +204,16 @@ function quizCard() {
     });
     const update = () => { save.disabled = !grid.querySelector('.acc-palette-cell.on'); };
     COLORS.forEach(color => {
-        grid.append(el('div', 'acc-palette-row', color));
         SUGARS.forEach(sugar => {
             const f = store.fruitFor(color, sugar);
             const key = `${color}|${sugar}`;
-            const cell = button('acc-palette-cell pick', f.title, () => {
+            const cell = button('acc-palette-cell pick', SUGAR_SHORT[sugar], () => {
                 cell.classList.toggle('on');
                 cell.setAttribute('aria-pressed', cell.classList.contains('on') ? 'true' : 'false');
                 update();
             }, artSvg('fruits', f.key, { size: 40 }));
             cell.dataset.cell = key;
-            cell.title = `${color.toLowerCase()}, ${sugar}`;
+            cell.title = `${f.title}: ${color.toLowerCase()}, ${sugar}`;
             if (selected.has(key)) cell.classList.add('on');
             cell.setAttribute('aria-pressed', selected.has(key) ? 'true' : 'false');
             grid.append(cell);
@@ -188,7 +231,7 @@ function quizCard() {
 function dashboard() {
     const m = store.metrics();
     const carousel = carouselBlock(m);
-    return [summaryCard(m, carousel.go), carousel.node, listsCard(), guideBlock(), settingsCard()];
+    return [summaryCard(m, carousel.go), carousel.node, listsCard()];
 }
 
 // Сводка под шапкой: все текущие достижения разом; нажатие открывает нужную карточку карусели
@@ -196,10 +239,12 @@ function summaryCard(m, go) {
     const account = store.getAccount();
     const box = el('section', 'acc-card acc-summary');
     const head = el('div', 'acc-profile-head');
-    head.append(artSvg('ui', 'account', { size: 44 }));
-    const who = el('div', 'acc-profile-who');
+    const avatar = button('acc-avatar', '', openProfileMenu, artSvg('ui', 'account', { size: 44 }));
+    avatar.title = 'Профиль: квиз заново, имя, выход, удаление данных';
+    avatar.setAttribute('aria-label', avatar.title);
+    const who = button('acc-profile-who', '', openProfileMenu);
     who.append(el('div', 'acc-name', account.name), el('div', 'acc-muted', `${m.points} / ${VINE_FULL_POINTS} очков · ${m.counts.cellar} в погребе`));
-    head.append(who);
+    head.append(avatar, who, helpButton());
     const chips = el('div', 'acc-sum-chips');
     const chip = (index, art, label, hint) => {
         const c = button('acc-sum-chip', '', () => go(index));
@@ -288,19 +333,16 @@ function tasteSlide(m) {
         box.append(note);
     }
     const grid = el('div', 'acc-palette');
-    grid.append(el('div', ''));
-    SUGARS.forEach(s => grid.append(el('div', 'acc-palette-head', s)));
     const cw = m.weights.colors, sw = m.weights.sugars;
     const maxW = Math.max(...COLORS.flatMap(c => SUGARS.map(s => cw[c] * sw[s])), 0);
     COLORS.forEach(color => {
-        grid.append(el('div', 'acc-palette-row', color));
         SUGARS.forEach(sugar => {
             const f = store.fruitFor(color, sugar);
             const w = maxW > 0 ? (cw[color] * sw[sugar]) / maxW : 0;
             const cell = el('div', `acc-palette-cell${f.key === fruit.key ? ' main' : ''}`);
             cell.style.setProperty('--w', w.toFixed(2));
             cell.title = `${f.title}: ${color.toLowerCase()}, ${sugar}`;
-            cell.append(artSvg('fruits', f.key, { size: 34, locked: w === 0 }), el('span', '', f.title));
+            cell.append(artSvg('fruits', f.key, { size: 38, locked: w === 0 }), el('span', '', SUGAR_SHORT[sugar]));
             grid.append(cell);
         });
     });
@@ -337,26 +379,6 @@ function statusesSlide(m) {
         row.append(info);
         box.append(row);
     });
-    return box;
-}
-
-function settingsCard() {
-    const account = store.getAccount();
-    const box = card('Профиль', '');
-    box.append(el('div', 'acc-muted', `Вход через ${PROVIDERS[account.provider] ? PROVIDERS[account.provider].title : account.provider} · демо, данные только на этом устройстве`));
-    const actions = el('div', 'acc-actions-row');
-    actions.append(
-        button('acc-btn small', 'Пройти квиз заново', () => { quizEditing = true; renderAccount(); }),
-        button('acc-btn small', 'Изменить имя', () => {
-            const name = window.prompt('Как к вам обращаться?', account.name);
-            if (name !== null) { store.setName(name); refreshAll(); }
-        }),
-        button('acc-btn small', 'Выйти', () => { store.logout(); refreshAll(); }),
-        button('acc-btn small danger', 'Удалить мои данные', () => {
-            if (window.confirm('Удалить профиль, историю, погреб и рецензии с этого устройства?')) { store.wipe(); refreshAll(); }
-        }),
-    );
-    box.append(actions);
     return box;
 }
 
@@ -511,16 +533,8 @@ function ratingRow(slug) {
 }
 
 async function openWine(wine) {
-    closeModal();
     const meta = store.wineMeta({ ...(store.knownWines().get(wine.slug) || {}), ...wine });
-    const modal = el('div', 'acc-modal');
-    modal.id = 'acc-modal';
-    const backdrop = el('div', 'acc-modal-backdrop');
-    backdrop.addEventListener('click', closeModal);
-    const sheet = el('div', 'acc-sheet');
-    sheet.setAttribute('role', 'dialog');
-    sheet.setAttribute('aria-label', meta.title);
-    sheet.append(button('acc-close', '×', closeModal));
+    const sheet = openSheet(meta.title);
 
     const head = el('div', 'acc-sheet-head');
     head.append(thumb(meta.image_url));
@@ -576,9 +590,6 @@ async function openWine(wine) {
     } else {
         sheet.append(button('acc-btn primary', 'Войти, чтобы сохранить в погреб', () => { closeModal(); openAccount(); }));
     }
-
-    modal.append(backdrop, sheet);
-    document.body.append(modal);
 
     if (meta.slug && (!meta.category || !meta.region || !meta.sweetness)) {
         try {
