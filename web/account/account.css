@@ -1,5 +1,5 @@
 /* Личный кабинет «Своё Вино» — палитра vino-svoe (как у подбора сомелье в vina.css), свои переменные, vina.css не меняется */
-.acc, .acc-modal, .acc-wine-actions, .acc-header-btn, #account-view {
+.acc, .acc-modal, .acc-wine-actions, .wine-actions-row, .acc-header-btn, #account-view {
     --acc-bg: #fefdfa; --acc-card: #ffffff; --acc-ink: #2c2a28; --acc-ink-2: #423f3c; --acc-muted: #857e79;
     --acc-line: #ebe5df; --acc-border: #ebe9e9; --acc-wine: #8f3d42; --acc-wine-soft: #f9f1f1; --acc-wine-line: #edd4d6;
     --acc-sage: #8fb48a; --acc-pistachio: #b9c98c; --acc-honey: #e2b97f; --acc-rose: #cf8f88; --acc-gold: #e2c77f;

@@ -128,6 +128,8 @@ function renderResult(data, id, originalUrl) {
     $('candidates-section').classList.toggle('hidden', !showCandidates);
     // новый ответ — блоки снова свёрнуты; без вина в каталоге сразу раскрыты кандидаты и чат
     ['wine-desc-fold', 'wine-pairing-section', 'alternatives-section'].forEach(key => { $(key).open = false; });
+    setRatingOpen(false);
+    setSommelierOpen(false);
     $('candidates-section').open = !winner;
     $('chat-section').open = !winner;
     if (showCandidates) {
@@ -1053,12 +1055,33 @@ function initRating(key) {
             rating = value;
             storage.set(storageKey, String(rating));
             paint(0);
+            setTimeout(() => setRatingOpen(false), 450);   // оценка видна на кнопке «Моя оценка»
         };
     });
     paint(0);
 }
 
-$('people-rating-badge').addEventListener('click', () => $('rating-section').scrollIntoView({ behavior: 'smooth' }));
+// «Моя оценка» на фото открывает выпадающую панель с бокалами; закрывается выбором, повторным нажатием или тапом мимо
+function setRatingOpen(open) {
+    $('rating-section').classList.toggle('open', open);
+    $('people-rating-badge').setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+$('people-rating-badge').addEventListener('click', event => {
+    event.stopPropagation();
+    setRatingOpen(!$('rating-section').classList.contains('open'));
+});
+document.addEventListener('click', event => {
+    if ($('rating-section').classList.contains('open') && !$('rating-section').contains(event.target)) setRatingOpen(false);
+});
+
+// «Сомелье» рядом с «В погреб» / «Заметка» открывает блок цифрового сомелье
+function setSommelierOpen(open) {
+    $('sommelier-section').classList.toggle('hidden', !open);
+    $('btn-somm-toggle').classList.toggle('on', open);
+    $('btn-somm-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) $('sommelier-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('btn-somm-toggle').addEventListener('click', () => setSommelierOpen($('sommelier-section').classList.contains('hidden')));
 
 // ---------- Проверка набора фото: каждое фото по очереди проходит тот же каскад ----------
 const IMAGE_FILE = /\.(jpe?g|png|webp)$/i;

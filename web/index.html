@@ -165,13 +165,29 @@
                 <div class="wine-card">
                     <div class="wine-image-container">
                         <img id="wine-image" src="" alt="">
-                        <div class="people-rating-badge" id="people-rating-badge" style="cursor: pointer;" title="Ваша оценка на этом устройстве">
-                            <div class="badge-icon-wrapper">
+                        <button type="button" class="people-rating-badge" id="people-rating-badge" aria-expanded="false" aria-controls="rating-section" title="Поставить свою оценку">
+                            <span class="badge-icon-wrapper">
                                 <img src="img/glass_filled_straight.png" alt="" class="badge-icon">
-                            </div>
+                            </span>
                             Моя оценка <span id="badge-score">-</span>
-                        </div>
+                        </button>
                     </div>
+                    <!-- Оценка вина: выпадает из кнопки «Моя оценка» -->
+                    <section class="rating-section rating-pop" id="rating-section" aria-label="Моя оценка">
+                    <h3>Поставьте оценку</h3>
+                    <div class="glasses-container" id="glasses-container">
+                        <div class="glass-slot" data-index="1"><img src="img/glass_empty_straight.png" alt="1" class="glass-img"></div>
+                        <div class="glass-slot" data-index="2"><img src="img/glass_empty_straight.png" alt="2" class="glass-img"></div>
+                        <div class="glass-slot" data-index="3"><img src="img/glass_empty_straight.png" alt="3" class="glass-img"></div>
+                        <div class="glass-slot" data-index="4"><img src="img/glass_empty_straight.png" alt="4" class="glass-img"></div>
+                        <div class="glass-slot" data-index="5"><img src="img/glass_empty_straight.png" alt="5" class="glass-img"></div>
+                    </div>
+                    <div class="rating-stats">
+                        <div id="user-rating-text">Ваша оценка: - из 5</div>
+                        <div class="stats-small">Оценки хранятся на этом устройстве</div>
+                    </div>
+                </section>
+
 
                     <div class="wine-info">
                         <p class="wine-winery" id="wine-winery"></p>
@@ -195,26 +211,18 @@
                     </div>
                 </div>
 
-                <!-- Оценка вина -->
-                <section class="rating-section" id="rating-section">
-                    <h3>Поставь свою оценку</h3>
-                    <div class="glasses-container" id="glasses-container">
-                        <div class="glass-slot" data-index="1"><img src="img/glass_empty_straight.png" alt="1" class="glass-img"></div>
-                        <div class="glass-slot" data-index="2"><img src="img/glass_empty_straight.png" alt="2" class="glass-img"></div>
-                        <div class="glass-slot" data-index="3"><img src="img/glass_empty_straight.png" alt="3" class="glass-img"></div>
-                        <div class="glass-slot" data-index="4"><img src="img/glass_empty_straight.png" alt="4" class="glass-img"></div>
-                        <div class="glass-slot" data-index="5"><img src="img/glass_empty_straight.png" alt="5" class="glass-img"></div>
-                    </div>
-                    <div class="rating-stats">
-                        <div id="user-rating-text">Ваша оценка: - из 5</div>
-                        <div class="stats-small">Оценки хранятся на этом устройстве</div>
-                    </div>
-                </section>
+                <!-- Действия с вином: погреб и заметка (личный кабинет) + сомелье по кнопке -->
+                <div class="wine-actions-row">
+                    <div id="acc-wine-actions" class="acc-wine-actions"></div>
+                    <button type="button" class="acc-btn" id="btn-somm-toggle" aria-expanded="false" aria-controls="sommelier-section">
+                        <img src="img/glass_filled_straight.png" alt="" class="acc-btn-icon"><span>Сомелье</span>
+                    </button>
+                </div>
 
-                <!-- Цифровой сомелье к распознанному вину -->
-                <section class="sommelier-section" id="sommelier-section">
+                <!-- Цифровой сомелье к распознанному вину: открывается кнопкой «Сомелье» -->
+                <section class="sommelier-section hidden" id="sommelier-section">
                     <h3><div class="badge-icon-wrapper"><img src="img/glass_filled_straight.png" class="badge-icon" alt=""></div>Цифровой сомелье</h3>
-                    <p id="somm-note-probable" class="somm-note hidden">Ответ «похоже»: если на этикетке другое вино, посмотрите других кандидатов ниже.</p>
+                    <p id="somm-note-probable" class="somm-note hidden">Ответ «похоже»: если на этикетке другое вино, посмотрите других кандидатов вверху экрана.</p>
                     <p>К чему вы подбираете это вино?</p>
                     <div class="pairing-options">
                         <button class="btn-pairing" data-dish="стейк из говядины">Мясо</button>

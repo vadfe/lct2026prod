@@ -1458,6 +1458,34 @@ details.fold[open] { padding-bottom: 16px; }
     font: inherit; font-size: 16px; font-weight: 600; box-shadow: 0 8px 24px rgba(128, 0, 32, .28); cursor: pointer;
 }
 
+/* Карточка вина: у второго правила .wine-info не было боковых отступов — текст прилипал к краю */
+.wine-card { position: relative; }
+.wine-info { padding: 16px 20px 18px; }
+
+/* «Моя оценка» — кнопка на фото, оценка бокалами выпадает панелью под ней */
+button.people-rating-badge {
+    border: 1px solid #ebe5df; font: inherit; font-size: 13px; font-weight: 600; padding: 4px 12px 4px 6px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; z-index: 6;
+}
+button.people-rating-badge[aria-expanded="true"] { background: #f9f1f1; border-color: #edd4d6; color: var(--primary); }
+.rating-pop {
+    position: absolute; top: 58px; right: 12px; z-index: 16; display: none; width: min(320px, calc(100% - 24px));
+    margin: 0; padding: 14px 10px 12px; border: 1px solid #ebe5df; border-radius: 16px;
+    box-shadow: 0 14px 34px rgba(44, 42, 40, .18);
+}
+.rating-pop.open { display: block; }
+.rating-pop h3 { font-size: 16px; margin-bottom: 8px; }
+.rating-pop .glasses-container { margin-bottom: 8px; }
+.rating-pop .glass-slot { width: 48px; height: 48px; }
+.rating-pop .glass-img { height: 34px; }
+.rating-pop .rating-stats { font-size: 13px; }
+
+/* Ряд действий под карточкой: «В погреб», «Заметка» (кабинет) и «Сомелье» */
+.wine-actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 16px; }
+.wine-actions-row > .acc-wine-actions { display: contents; }
+.acc-btn-icon { width: 20px; height: 22px; object-fit: contain; }
+#sommelier-section { margin-bottom: 16px; }
+
 /* Шрифты: на мобильном мельче 13 px не читается (подписи шкал-гроздей в узких колонках — 12 px) */
 .people-rating-badge, .stats-small, .field-hint, .list-item .noimg, .item-reasons, .wd-title, .wd-chip, .wd-scale-label,
 .wd-scale-word, .wd-scale-ends, .wd-fact-label, .pr-verdict, .pr-group-title, .pr-quote, .pr-unknown-label, .pr-dish-btn b,
