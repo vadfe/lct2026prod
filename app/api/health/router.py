@@ -1,3 +1,4 @@
+from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -6,8 +7,10 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/ping")
-async def ping() -> dict[str, bool]:
-    return {"ok": True}
+@router.get("/health")
+async def ping() -> dict[str, Any]:
+    return {"status": "healthy", "ok": True}
+
 
 
 @router.get("/ready")

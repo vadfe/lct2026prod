@@ -1,0 +1,22 @@
+﻿slug,name,producer,grape,color,sweetness,oak,country,region,volume_l,price_rub,retailer_sku,barcode,store_id,stock_qty,is_russian
+demo-donskie-holmy-krasnostop-reserv,Красностоп Золотовский Резерв,Демо-Донские холмы,Красностоп Золотовский,Красное,сухое,да,Россия,Дон,0.75,1890,DEMO-0001,4600090000018,demo-store-1,12,да
+demo-stanitsa-krasnostop-molodoe,Красностоп молодое,Демо-Станица,Красностоп,Красное,сухое,нет,Россия,Дон,0.75,990,DEMO-0002,4600090000025,demo-store-1,12,да
+demo-derbentskie-sady-saperavi,Саперави,Демо-Дербентские сады,Саперави,Красное,сухое,нет,Россия,Дагестан,0.75,850,DEMO-0003,4600090000032,demo-store-1,12,да
+demo-tavrida-saperavi-reserv,Саперави Резерв,Демо-Таврида,Саперави,Красное,сухое,да,Россия,Крым,0.75,1650,DEMO-0004,4600090000049,demo-store-1,12,да
+demo-kubanskaya-dolina-kaberne,Каберне Совиньон,Демо-Кубанская долина,Каберне-Совиньон,Красное,сухое,да,Россия,Кубань,0.75,1290,DEMO-0005,4600090000056,demo-store-1,12,да
+demo-yuzhny-bereg-merlo,Мерло,Демо-Южный берег,Мерло,Красное,сухое,нет,Россия,Крым,0.75,790,DEMO-0006,4600090000063,demo-store-1,12,да
+demo-sevastopolskaya-terrasa-pino-nuar,Пино Нуар,Демо-Севастопольская терраса,Пино Нуар,Красное,сухое,да,Россия,Севастополь,0.75,2100,DEMO-0007,4600090000070,demo-store-1,12,да
+demo-kubanskaya-dolina-shardone-dub,"Шардоне, выдержанное в дубе",Демо-Кубанская долина,Шардоне,Белое,сухое,да,Россия,Кубань,0.75,1450,DEMO-0008,4600090000087,demo-store-1,12,да
+demo-yuzhny-bereg-shardone,Шардоне,Демо-Южный берег,Шардоне,Белое,сухое,нет,Россия,Крым,0.75,820,DEMO-0009,4600090000094,demo-store-1,12,да
+demo-tamanskiy-bereg-risling,Рислинг,Демо-Таманский берег,Рислинг,Белое,полусухое,нет,Россия,Кубань,0.75,760,DEMO-0010,4600090000100,demo-store-1,12,да
+demo-gorny-krym-sovinon-blan,Совиньон Блан,Демо-Горный Крым,Совиньон Блан,Белое,сухое,нет,Россия,Крым,0.75,980,DEMO-0011,4600090000117,demo-store-1,12,да
+demo-laskovy-bereg-muskat-bely,Мускат белый,Демо-Ласковый берег,Мускат белый,Белое,сладкое,нет,Россия,Крым,0.5,1100,DEMO-0012,4600090000124,demo-store-1,12,да
+demo-andskie-sklony-cabernet,Cabernet Sauvignon,Демо-Андские склоны,Cabernet Sauvignon,Красное,сухое,да,Чили,Центральная долина,0.75,1190,DEMO-0013,2000090000131,demo-store-1,12,нет
+demo-chateau-riviere-bordeaux,Château Rivière Bordeaux,Демо-Шато Ривьер,Каберне Совиньон,Красное,сухое,да,Франция,Бордо,0.75,2900,DEMO-0014,2000090000148,demo-store-1,12,нет
+demo-colli-merlot-veneto,Merlot Veneto,Демо-Колли,Merlot,Красное,сухое,нет,Италия,Венето,0.75,890,DEMO-0015,2000090000155,demo-store-1,12,нет
+demo-domaine-clair-pinot-noir,Bourgogne Pinot Noir,Демо-Домен Клер,Pinot Noir,Красное,сухое,да,Франция,Бургундия,0.75,3400,DEMO-0016,2000090000162,demo-store-1,12,нет
+demo-alazanskaya-loza-saperavi,Саперави Кахети,Демо-Алазанская лоза,Саперави,Красное,сухое,нет,Грузия,Кахетия,0.75,1050,DEMO-0017,2000090000179,demo-store-1,12,нет
+demo-domaine-clair-chardonnay,Bourgogne Chardonnay,Демо-Домен Клер,Chardonnay,Белое,сухое,да,Франция,Бургундия,0.75,2700,DEMO-0018,2000090000186,demo-store-1,12,нет
+demo-mozelsky-sklon-riesling,Riesling Mosel,Демо-Мозельский склон,Riesling,Белое,полусухое,нет,Германия,Мозель,0.75,1350,DEMO-0019,2000090000193,demo-store-1,12,нет
+demo-yuzhny-ostrov-sauvignon-blanc,Sauvignon Blanc Marlborough,Демо-Южный остров,Sauvignon Blanc,Белое,сухое,нет,Новая Зеландия,Мальборо,0.75,1490,DEMO-0020,2000090000209,demo-store-1,12,нет
+demo-piemonte-moscato,Moscato Piemonte,Демо-Пьемонт Вини,Moscato,Белое,сладкое,нет,Италия,Пьемонт,0.75,1250,DEMO-0021,2000090000216,demo-store-1,12,нет

@@ -91,24 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- API Configuration & Bridge Support ---
   function getApiBase() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const apiParam = urlParams.get('api');
-    if (apiParam) {
-      const clean = apiParam.trim().replace(/\/+$/, '');
-      localStorage.setItem('vina_api_url', clean);
-      return clean;
-    }
-
-    // Always prefer direct local connection if running locally
-    const isLocalHost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1' || 
-                        window.location.hostname === '0.0.0.0' ||
-                        window.location.port === '8080' ||
-                        !window.location.hostname;
-    // if (isLocalHost) { return ''; }
-
-    const saved = localStorage.getItem('vina_api_url');
-    if (saved) return saved.trim().replace(/\/+$/, '');
+    // В docker-сборке API и статика всегда на одном хосте
     return '';
   }
 

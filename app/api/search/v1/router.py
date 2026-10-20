@@ -47,15 +47,28 @@ async def search(
         raise HTTPException(status_code=422, detail=f"k must not exceed {settings.max_top_k}")
     source = await decode_upload(image, images, settings)
     async with pipeline.gpu_semaphore:
-        box = await asyncio.to_thread(detector.best_box, source)
-    if box is None:
+        all_boxes = await asyncio.to_thread(detector.find_all_labels, source)
+    if not all_boxes:
         raise HTTPException(status_code=422, detail="Label was not detected")
+        
+    main_box = all_boxes[0]
     try:
-        crop = images.crop(source, box)
+        main_crop = images.crop(source, main_box)
+        secondary_crops = [images.crop(source, box) for box in all_boxes[1:]]
     except InvalidImage as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    query_crop_b64 = await asyncio.to_thread(encode_crop_data_url, crop)
-    return await pipeline.run(crop, ProductRepository(session), k, query_crop=query_crop_b64)
+        
+    query_crop_b64 = await asyncio.to_thread(encode_crop_data_url, main_crop)
+    secondary_crops_b64 = [await asyncio.to_thread(encode_crop_data_url, c) for c in secondary_crops]
+    
+    return await pipeline.run(
+        main_crop, 
+        ProductRepository(session), 
+        k, 
+        query_crop=query_crop_b64,
+        secondary_crops_b64=secondary_crops_b64,
+        secondary_crop_images=secondary_crops
+    )
 
 
 @router.post("/search-from-crop", response_model=SearchResponse)

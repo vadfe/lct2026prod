@@ -9,7 +9,7 @@ function Test-Docker {
     return ($LASTEXITCODE -eq 0)
 }
 
-function Ensure-Docker {
+function Wait-Docker {
     while (-not (Test-Docker)) {
         Write-Host ""
         Write-Host "[!] Docker Desktop is not running or still starting!" -ForegroundColor Red
@@ -19,7 +19,7 @@ function Ensure-Docker {
     }
 }
 
-Ensure-Docker
+Wait-Docker
 
 if (-not (Test-Path ".env")) {
     Write-Host "[INFO] File .env not found, copying from .env.example..." -ForegroundColor Cyan

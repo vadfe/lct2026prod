@@ -24,6 +24,10 @@ dependencies = [
   "transformers==4.48.3",
   "ultralytics==8.3.75",
   "uvicorn[standard]==0.34.0",
+  "easyocr==1.7.2",
+  "rapidocr-onnxruntime==1.4.3",
+  "scikit-image==0.24.0",
+  "pyzbar==0.1.9",
 ]
 
 [project.optional-dependencies]

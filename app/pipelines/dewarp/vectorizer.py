@@ -683,25 +683,29 @@ class MaskVectorizer:
             y_int = np.polyval(poly, x_int)
             return np.array([x_int, y_int])
 
-        # 1. Извлекаем независимые полиномы для верха и низа чисто по контуру маски
-        poly_T, raw_T = _get_horizontal_parabola_poly(raw_T, tol=4.0)
-        poly_B, raw_B = _get_horizontal_parabola_poly(raw_B, tol=4.0)
+        # 1. Формируем угловые точки, проецируя углы маски на прямые боковые направляющие
+        def project_point_onto_line(pt, line):
+            vx, vy, cx, cy = line
+            t = ((pt[0] - cx)*vx + (pt[1] - cy)*vy) / (vx**2 + vy**2 + 1e-9)
+            return np.array([cx + t*vx, cy + t*vy])
 
-        # 2. Находим точные точки пересечения базовых парабол с боковыми направляющими
-        P_TL = intersect_line_parabola(line_L, poly_T, pts_cnt[i_tl, 0])
-        P_TR = intersect_line_parabola(line_R, poly_T, pts_cnt[i_tr, 0])
-        P_BL = intersect_line_parabola(line_L, poly_B, pts_cnt[i_bl, 0])
-        P_BR = intersect_line_parabola(line_R, poly_B, pts_cnt[i_br, 0])
+        P_TL = project_point_onto_line(pts_cnt[i_tl], line_L)
+        P_TR = project_point_onto_line(pts_cnt[i_tr], line_R)
+        P_BL = project_point_onto_line(pts_cnt[i_bl], line_L)
+        P_BR = project_point_onto_line(pts_cnt[i_br], line_R)
 
-        # Мы больше не сдвигаем параболы к y_min/y_max. 
-        # Искусственный сдвиг приводил к отрыву зеленых дуг от фактического контура на краях.
+        # 2. Формируем дуги T_curve и B_curve с помощью сглаживания (полиномы/Фурье),
+        # строго привязывая концы дуг к вычисленным углам.
+        def resample_raw(raw, n):
+            u_old = np.linspace(0.0, 1.0, len(raw))
+            u_new = np.linspace(0.0, 1.0, n)
+            return np.column_stack((np.interp(u_new, u_old, raw[:, 0]), np.interp(u_new, u_old, raw[:, 1])))
 
-        # 3. Формируем дуги T_curve и B_curve строго между вычисленными углами пересечения
-        x_base_T = np.linspace(P_TL[0], P_TR[0], N_pts)
-        T_curve = np.column_stack((x_base_T, np.polyval(poly_T, x_base_T)))
+        raw_T_res = resample_raw(raw_T, N_pts)
+        raw_B_res = resample_raw(raw_B, N_pts)
 
-        x_base_B = np.linspace(P_BL[0], P_BR[0], N_pts)
-        B_curve = np.column_stack((x_base_B, np.polyval(poly_B, x_base_B)))
+        T_curve = self._smooth_horizontal_guide(raw_T_res, P_TL, P_TR)
+        B_curve = self._smooth_horizontal_guide(raw_B_res, P_BL, P_BR)
 
         # 7. Извлечение боковых сегментов контура
         seg_l1 = get_cnt_segment(i_tl, i_bl)

@@ -21,6 +21,8 @@ class SearchResult(BaseModel):
     inlier_ratio: float
     pgvector_rank: int
     final_rank: int
+    confidence: float | None = None
+    ocr_tags: dict | None = None
 
 
 class SearchTimings(BaseModel):
@@ -35,6 +37,7 @@ class SearchResponse(BaseModel):
     results: list[SearchResult]
     timings: SearchTimings
     query_crop: str | None = None
+    secondary_crops: list[str] | None = None
     augmentation_applied: list[str] | None = None
 
 

@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>VINA — Сканер, Каталог, Карта вин и ИИ-Сомелье</title>
+
+    <!-- Подключение OpenStreetMap (Leaflet CSS & JS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #110d10;
+            --bg-card: #1c151a;
+            --bg-card-hover: #261c23;
+            --wine-primary: #8b1e3f;
+            --wine-accent: #d4af37;
+            --text-main: #f5eff2;
+            --text-muted: #a899a0;
+            --green-ok: #2ecc71;
+            --border-soft: rgba(212, 175, 55, 0.22);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            padding-bottom: 40px;
+        }
+
+        /* ВЕРХНИЕ 4 ЗАКЛАДКИ НАВИГАЦИИ */
+        .top-tabs-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            padding: 10px 12px;
+            background: rgba(17, 13, 16, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .tab-btn {
+            background: var(--bg-card);
+            color: var(--text-muted);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            padding: 10px 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--wine-primary), #591127);
+            color: #fff;
+            border-color: var(--wine-accent);
+            box-shadow: 0 4px 14px rgba(139, 30, 63, 0.45);
+        }
+
+        .tab-panel {
+            display: none;
+            padding: 14px;
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* КАРТОЧКИ И КНОПКИ */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            background: rgba(212, 175, 55, 0.15);
+            color: var(--wine-accent);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--wine-primary);
+            color: #fff;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #d4af37, #aa821c);
+            color: #110d10;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--wine-accent);
+            border: 1px solid var(--wine-accent);
+        }
+
+        /* ШКАЛЫ ОРГАНОЛЕПТИКИ (КИСЛОТНОСТЬ, ТАНИНЫ, ТЕЛО, СЛАДОСТЬ) */
+        .sensory-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .sensory-item {
+            font-size: 12px;
+        }
+
+        .sensory-bar-bg {
+            height: 7px;
+            background: #2d2229;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .sensory-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--wine-primary), var(--wine-accent));
+            border-radius: 6px;
+        }
+
+        /* ПЕРЕКЛЮЧАТЕЛЬ ПРОСТЫЕ / НЕОБЫЧНЫЕ БЛЮДА */
+        .dish-toggle {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .dish-box {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--wine-accent);
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        /* КАРТА OPENSTREETMAP */
+        #osm-map {
+            width: 100%;
+            height: 340px;
+            border-radius: 16px;
+            border: 1px solid var(--border-soft);
+            margin-bottom: 12px;
+        }
+
+        .nav-hud {
+            background: linear-gradient(135deg, #1b2e23, #132019);
+            border: 1px solid var(--green-ok);
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .store-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 8px;
+        }
+
+        .store-item.active-route {
+            border-color: var(--green-ok);
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        /* МОДАЛЬНОЕ ОКНО «ИСТОРИЯ ВИНА» */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--wine-accent);
+            border-radius: 20px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* ФИЛЬТРЫ КАТАЛОГА */
+        .filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        select,
+        input[type="text"] {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ ЗАКЛАДОК -->
+    <nav class="top-tabs-bar">
+        <button class="tab-btn" onclick="switchTab('scanner')" id="tabBtn-scanner">📷 Сканер</button>
+        <button class="tab-btn active" onclick="switchTab('catalog')" id="tabBtn-catalog">🍷 Каталог вин</button>
+        <button class="tab-btn" onclick="switchTab('map')" id="tabBtn-map">🗺 Карта вин</button>
+        <button class="tab-btn" onclick="switchTab('sommelier')" id="tabBtn-sommelier">🤵 Сомелье</button>
+    </nav>
+
+    <!-- ========================================================= -->
+    <!-- ЗАКЛАДКА 1: СКАНЕР (Точка входа в новый модуль Сомелье)   -->
+    <!-- ========================================================= -->
+    <section class="tab-panel" id="panel-scanner">
+        <div class="card">
+            <span class="badge">✅ Бутылка распознана сканером VINA</span>
+            <h2 id="scan-wine-title" style="margin: 6px 0;">Портвейн Красный Ливадия Массандра</h2>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
+                Вместо старого текстового описания теперь подключен интерактивный движок доказательной гастропары
+                (`pairing_engine.py`).
+            </p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-gold" onclick="loadScannerSommelier('massandra-portveyn-krasnyy-livadiya')">
+                    🧪 Разбор кислотности и блюд (Сомелье)
+                </button>
+                <button class="btn btn-outline" onclick="openMapForWine('massandra-portveyn-krasnyy-livadiya')">
+                    📍 Найти в ближайшем магазине
+                </button>
+            </div>
+            <div id="scanner-sommelier-output" style="margin-top: 14px;"></div>
+        </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- ЗАКЛАДКА 2: КАТАЛОГ ВИН (Блюда, фильтры, Вина с историей) -->
+    <!-- ========================================================= -->
+    <section class="tab-panel active" id="panel-catalog">
+        <div class="card">
+            <h3 style="margin-bottom: 10px;">🔎 Подбор вина по вкусу, блюду или истории</h3>
+            <div class="filters-row">
+                <select id="filter-dish" onchange="loadCatalog()">
+                    <option value="">🍽 Любое блюдо</option>
+                    <option value="steak">🥩 К мясу и стейку</option>
+                    <option value="fish">🐟 К рыбе и морепродуктам</option>
+                    <option value="dessert">🍫 К сырам и десертам</option>
+                </select>
+                <select id="filter-color" onchange="loadCatalog()">
+                    <option value="">🍷 Любой цвет</option>
+                    <option value="Красное">Красное</option>
+                    <option value="Белое">Белое</option>
+                    <option value="Розовое">Розовое</option>
+                </select>
+                <select id="filter-sugar" onchange="loadCatalog()">
+                    <option value="">🍇 Любая сухость</option>
+                    <option value="Сухое">Сухое</option>
+                    <option value="Сладкое">Сладкое / Крепленое</option>
+                </select>
+                <button class="btn btn-gold" id="btn-history-filter" onclick="toggleHistoryFilter()">
+                    📜 Вина с историей (Ялта 1945)
+                </button>
+            </div>
+        </div>
+
+        <div id="catalog-list"></div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- ЗАКЛАДКА 3: КАРТА ВИН (5 магазинов пешком + GPS трекинг)  -->
+    <!-- ========================================================= -->
+    <section class="tab-panel" id="panel-map">
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <h3>🗺 5 ближайших магазинов в пешей доступности</h3>
+                    <p id="map-selected-wine-banner" style="font-size:12px; color:var(--wine-accent); margin-top:2px;">
+                        Выберите магазин и нажмите «Путь» — карта проведет вас пешком до двери
+                    </p>
+                </div>
+                <button class="btn btn-outline" onclick="centerOnUser()">🎯 Где я</button>
+            </div>
+
+            <!-- Панель активного ведения по маршруту (чтобы не потеряться) -->
+            <div class="nav-hud" id="walking-hud">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong id="hud-store-name" style="color:var(--green-ok);">🚶 Пеший маршрут активен</strong>
+                        <div id="hud-distance-info" style="font-size:13px; margin-top:4px;">Расчет расстояния...</div>
+                    </div>
+                    <button class="btn btn-outline" onclick="stopWalkingNavigation()" style="padding:6px 10px;">✖
+                        Стоп</button>
+                </div>
+            </div>
+
+            <!-- Контейнер карты OpenStreetMap -->
+            <div id="osm-map"></div>
+
+            <!-- Список 5 магазинов -->
+            <div id="stores-list"></div>
+        </div>
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- ЗАКЛАДКА 4: СОМЕЛЬЕ (Тосты к событию + Совет по каталогу) -->
+    <!-- ========================================================= -->
+    <section class="tab-panel" id="panel-sommelier">
+        <div class="card">
+            <h3>🤵 Персональный ИИ-Сомелье и Мастер тостов</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin:6px 0 12px;">
+                Выберите событие и вино из каталога — сомелье произнесет красивый исторический тост и даст конкретный
+                гастрономический совет.
+            </p>
+
+            <div class="filters-row">
+                <select id="sommelier-occasion">
+                    <option value="friends">🥂 Встреча с друзьями</option>
+                    <option value="birthday">🎂 День рождения</option>
+                    <option value="romance">❤️ Романтическое свидание</option>
+                    <option value="victory">🏆 Успешный проект / Победа</option>
+                </select>
+
+                <select id="sommelier-wine-select">
+                    <option value="massandra-portveyn-krasnyy-livadiya">Портвейн Красный Ливадия (Ялта 1945)</option>
+                    <option value="massandra-madera-krymskaya">Мадера Массандра Крымская</option>
+                    <option value="golubitskoe-estate-rose-rozovoe-suhoe-125">Голубицкое Эстейт Розе</option>
+                    <option value="vedernikov-krasnostop-zolotovskiy-suhoe">Красностоп Золотовский Ведерниковъ</option>
+                </select>
+            </div>
+
+            <input type="text" id="sommelier-question"
+                placeholder="Или напишите вопрос (например: с чем подать и чем заменить?)"
+                style="width:100%; margin-bottom:10px;" />
+
+            <button class="btn btn-gold" style="width:100%;" onclick="askSommelier()">
+                ✨ Получить тост и совет сомелье с привязкой к каталогу
+            </button>
+        </div>
+
+        <div id="sommelier-answer-box"></div>
+    </section>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ИСТОРИЯ ВИНА (СТАЛИН, РУЗВЕЛЬТ, ЧЕРЧИЛЛЬ) -->
+    <div class="modal-backdrop" id="history-modal" onclick="closeHistoryModal(event)">
+        <div class="modal-content" id="history-modal-body"></div>
+    </div>
+
+    <script>
+        let onlyHistoryFlag = false;
+        let mapInstance = null;
+        let userLat = 45.0355; // Координаты по умолчанию (Юг России), обновляются по GPS
+        let userLon = 38.9753;
+        let userMarker = null;
+        let routePolyline = null;
+        let storeMarkers = [];
+        let watchPositionId = null;
+        let activeTargetStore = null;
+        let currentSelectedWineSlug = null;
+
+        // Переключение верхних вкладок
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tabBtn-' + tabName).classList.add('active');
+            document.getElementById('panel-' + tabName).classList.add('active');
+
+            if (tabName === 'map') {
+                initOrRefreshMap();
+            }
+        }
+
+        // 1. ЗАГРУЗКА КАТАЛОГА ВИН
+        async function loadCatalog() {
+            const color = document.getElementById('filter-color').value;
+            const sugar = document.getElementById('filter-sugar').value;
+            const dish = document.getElementById('filter-dish').value;
+
+            const params = new URLSearchParams();
+            if (color) params.append('color', color);
+            if (sugar) params.append('sugar', sugar);
+            if (dish) params.append('dish_query', dish);
+            if (onlyHistoryFlag) params.append('only_with_history', 'true');
+
+            const res = await fetch('/api/v2/catalog?' + params.toString());
+            const data = await res.json();
+            const container = document.getElementById('catalog-list');
+
+            container.innerHTML = data.items.map(w => {
+                const v = w.organoleptic;
+                const simpleHtml = w.quick_dishes.simple.map(d => `
+          <div class="dish-box">
+            <strong>${d.emoji} ${d.title}</strong> <span style="color:var(--text-muted);">(${d.prep_time_min} мин)</span>
+            <div style="color:var(--text-muted); margin-top:3px;">🧪 ${d.short_why}</div>
+          </div>
+        `).join('');
+
+                const unusualHtml = w.quick_dishes.unusual.map(d => `
+          <div class="dish-box" style="border-left-color: var(--wine-primary);">
+            <strong>${d.emoji} ${d.title}</strong> <span style="color:var(--text-muted);">(${d.prep_time_min} мин)</span>
+            <div style="color:var(--text-muted); margin-top:3px;">✨ ${d.short_why}</div>
+          </div>
+        `).join('');
+
+                return `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <span class="badge">${w.color} • ${w.sugar}</span>
+                ${w.has_history ? `<span class="badge" style="background:rgba(212,175,55,0.3);">📜 Вино с историей</span>` : ''}
+                <h3 style="margin:4px 0;">${w.name}</h3>
+                <div style="font-size:12px; color:var(--text-muted);">${w.region || ''} • Сорт: ${w.grape || ''}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:18px; font-weight:700; color:var(--wine-accent);">${w.price || 990} ₽</div>
+                <div style="font-size:12px;">⭐ ${w.rating || 4.6}</div>
+              </div>
+            </div>
+
+            <!-- Шкалы кислотности, танинов, тела и сладости -->
+            <div class="sensory-grid">
+              <div class="sensory-item">Кислотность: <b>${v.acidity}/5</b>
+                <div class="sensory-bar-bg"><div class="sensory-bar-fill" style="width:${v.acidity * 20}%"></div></div>
+              </div>
+              <div class="sensory-item">Танины: <b>${v.tannins}/5</b>
+                <div class="sensory-bar-bg"><div class="sensory-bar-fill" style="width:${v.tannins * 20}%"></div></div>
+              </div>
+              <div class="sensory-item">Плотность (Тело): <b>${v.body}/5</b>
+                <div class="sensory-bar-bg"><div class="sensory-bar-fill" style="width:${v.body * 20}%"></div></div>
+              </div>
+              <div class="sensory-item">Сладость: <b>${v.sweetness}/5</b>
+                <div class="sensory-bar-bg"><div class="sensory-bar-fill" style="width:${v.sweetness * 20}%"></div></div>
+              </div>
+            </div>
+
+            <!-- Переключатель Простые / Необычные блюда -->
+            <div class="dish-toggle">
+              <button class="btn btn-outline" onclick="toggleDishesView('${w.slug}', 'simple')">🏠 Простые блюда</button>
+              <button class="btn btn-outline" onclick="toggleDishesView('${w.slug}', 'unusual')">✨ Необычные гастропары</button>
+            </div>
+            <div id="dishes-simple-${w.slug}">${simpleHtml}</div>
+            <div id="dishes-unusual-${w.slug}" style="display:none;">${unusualHtml}</div>
+
+            <!-- Кнопки действий: Карта магазинов и История вина -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+              <button class="btn btn-primary" onclick="openMapForWine('${w.slug}')">
+                🗺 На карте (5 магазинов пешком)
+              </button>
+              ${w.has_history ? `
+                <button class="btn btn-gold" onclick="openWineHistory('\${w.slug}')">
+                  📜 История вина (Знаменитости и факты)
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+            }).join('');
+        }
+
+        function toggleDishesView(slug, mode) {
+            document.getElementById(`dishes-simple-${slug}`).style.display = mode === 'simple' ? 'block' : 'none';
+            document.getElementById(`dishes-unusual-${slug}`).style.display = mode === 'unusual' ? 'block' : 'none';
+        }
+
+        function toggleHistoryFilter() {
+            onlyHistoryFlag = !onlyHistoryFlag;
+            const btn = document.getElementById('btn-history-filter');
+            btn.style.boxShadow = onlyHistoryFlag ? '0 0 14px #d4af37' : 'none';
+            loadCatalog();
+        }
+
+        // 2. МОДАЛЬНОЕ ОКНО «ИСТОРИЯ ВИНА» (ЯЛТА 1945)
+        async function openWineHistory(slug) {
+            const res = await fetch(`/api/v2/wine/${slug}/history`);
+            const h = await res.json();
+            const body = document.getElementById('history-modal-body');
+
+            body.innerHTML = `
+        <span class="badge">📜 Историческое досье • Создано в ${h.creation_year}</span>
+        <h2 style="margin:6px 0; color:var(--wine-accent);">${h.wine_name}</h2>
+        <p style="font-size:14px; font-weight:600; margin-bottom:10px;">${h.headline}</p>
+        <div style="margin-bottom:12px;">
+          ${h.celebrities_badges.map(c => `<span class="badge">\${c}</span>`).join('')}
+        </div>
+        <p style="font-size:13px; line-height:1.5; color:var(--text-muted); margin-bottom:14px;">
+          ${h.legend_summary}
+        </p>
+        ${h.historical_events.map(ev => `
+          <div class="dish-box" style="margin-bottom:10px;">
+            <div style="color:var(--wine-accent); font-weight:700;">🏛 ${ev.era_year}:${ev.title}</div>
+            <p style="margin-top:5px; line-height:1.45;">\${ev.story}</p>
+          </div>
+        `).join('')}
+        <div class="dish-box" style="border-left-color:var(--green-ok);">
+          <strong>🍷 Секрет подачи сомелье:</strong> ${h.serving_secret}
+        </div>
+        <button class="btn btn-gold" style="width:100%; margin-top:12px;" onclick="document.getElementById('history-modal').style.display='none'">
+          Понятно, закрыть досье
+        </button>
+      `;
+            document.getElementById('history-modal').style.display = 'flex';
+        }
+
+        function closeHistoryModal(e) {
+            if (e.target.id === 'history-modal') {
+                document.getElementById('history-modal').style.display = 'none';
+            }
+        }
+
+        // 3. КАРТА OPENSTREETMAP + 5 БЛИЖАЙШИХ МАГАЗИНОВ + ТРЕКИНГ ПУТИ
+        function openMapForWine(slug) {
+            currentSelectedWineSlug = slug;
+            switchTab('map');
+        }
+
+        function initOrRefreshMap() {
+            if (!mapInstance) {
+                mapInstance = L.map('osm-map').setView([userLat, userLon], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(mapInstance);
+            }
+            setTimeout(() => mapInstance.invalidateSize(), 150);
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        userLat = pos.coords.latitude;
+                        userLon = pos.coords.longitude;
+                        fetchAndRenderNearbyStores();
+                    },
+                    () => fetchAndRenderNearbyStores(),
+                    { enableHighAccuracy: true, timeout: 4000 }
+                );
+            } else {
+                fetchAndRenderNearbyStores();
+            }
+        }
+
+        async function fetchAndRenderNearbyStores() {
+            const params = new URLSearchParams({ lat: userLat, lon: userLon });
+            if (currentSelectedWineSlug) params.append('wine_slug', currentSelectedWineSlug);
+
+            const res = await fetch('/api/v2/map/nearby-stores?' + params.toString());
+            const data = await res.json();
+
+            if (data.selected_wine_name) {
+                document.getElementById('map-selected-wine-banner').innerHTML =
+                    `🍷 Вы ищете: <b>${data.selected_wine_name}</b> — в наличии в 5 ближайших магазинах пешком`;
+            }
+
+            // Маркер пользователя
+            if (userMarker) mapInstance.removeLayer(userMarker);
+            userMarker = L.circleMarker([userLat, userLon], {
+                radius: 9, color: '#ffffff', weight: 3, fillColor: '#2ecc71', fillOpacity: 1
+            }).addTo(mapInstance).bindPopup('<b>🏠 Вы здесь</b>');
+
+            // Очистка старых маркеров магазинов
+            storeMarkers.forEach(m => mapInstance.removeLayer(m));
+            storeMarkers = [];
+
+            const bounds = [[userLat, userLon]];
+            const listEl = document.getElementById('stores-list');
+
+            listEl.innerHTML = data.stores.map((s, idx) => {
+                bounds.push([s.lat, s.lon]);
+                const marker = L.marker([s.lat, s.lon]).addTo(mapInstance)
+                    .bindPopup(`<b>${idx + 1}. ${s.name}</b><br>${s.address}<br>🚶 ${s.distance_meters} м (${s.walk_time_minutes} мин)<br>Цена: <b>${s.price_rub} ₽</b>`);
+                storeMarkers.push(marker);
+
+                return `
+          <div class="store-item" id="store-row-${s.store_id}">
+            <div>
+              <div style="font-weight:700;">${idx + 1}. ${s.name}</div>
+              <div style="font-size:12px; color:var(--text-muted);">${s.address} • 🕒 ${s.working_hours}</div>
+              <div style="font-size:12px; color:var(--wine-accent); margin-top:3px;">
+                🚶 <b>${s.distance_meters} м</b> (~${s.walk_time_minutes} мин пешком) • В наличии: ${s.bottles_left} бут. (${s.price_rub} ₽)
+              </div>
+            </div>
+            <button class="btn btn-gold" onclick="startWalkingRoute(${s.lat}, ${s.lon}, '${s.name.replace(/'/g, "")}', '${s.store_id}')">
+              🚶 Путь
+            </button>
+          </div>
+        `;
+            }).join('');
+
+            mapInstance.fitBounds(bounds, { padding: [35, 35] });
+        }
+
+        // Построение пешего маршрута по улицам (OSRM Foot) + постоянный GPS-трекинг
+        async function startWalkingRoute(destLat, destLon, storeName, storeId) {
+            activeTargetStore = { lat: destLat, lon: destLon, name: storeName };
+            document.querySelectorAll('.store-item').forEach(el => el.classList.remove('active-route'));
+            const row = document.getElementById('store-row-' + storeId);
+            if (row) row.classList.add('active-route');
+
+            await drawOsrmFootRoute(userLat, userLon, destLat, destLon, storeName);
+
+            // Включаем живое отслеживание геолокации, чтобы пользователь не потерялся
+            if (navigator.geolocation) {
+                if (watchPositionId !== null) navigator.geolocation.clearWatch(watchPositionId);
+                watchPositionId = navigator.geolocation.watchPosition(
+                    async pos => {
+                        userLat = pos.coords.latitude;
+                        userLon = pos.coords.longitude;
+                        if (userMarker) userMarker.setLatLng([userLat, userLon]);
+                        if (activeTargetStore) {
+                            await drawOsrmFootRoute(userLat, userLon, activeTargetStore.lat, activeTargetStore.lon, activeTargetStore.name);
+                        }
+                    },
+                    err => console.warn('GPS tracking warning:', err),
+                    { enableHighAccuracy: true, maximumAge: 3000 }
+                );
+            }
+        }
+
+        async function drawOsrmFootRoute(fromLat, fromLon, toLat, toLon, storeName) {
+            const hud = document.getElementById('walking-hud');
+            hud.style.display = 'block';
+            document.getElementById('hud-store-name').innerText = `🚶 Идем в: ${storeName}`;
+
+            try {
+                const url = `https://router.project-osrm.org/route/v1/foot/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                    if (routePolyline) mapInstance.removeLayer(routePolyline);
+                    routePolyline = L.polyline(coords, { color: '#2ecc71', weight: 6, dashArray: '8, 6' }).addTo(mapInstance);
+                    mapInstance.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+
+                    const distM = Math.round(route.distance);
+                    const mins = Math.max(1, Math.round(distM / 78));
+                    document.getElementById('hud-distance-info').innerHTML =
+                        `Осталось идти: <b>${distM} м</b> (~${mins} мин пешком). GPS-трекер ведет вас по маршруту.`;
+                    return;
+                }
+            } catch (e) {
+                console.warn('Fallback line route');
+            }
+
+            // Резервная линия, если внешний OSRM недоступен
+            if (routePolyline) mapInstance.removeLayer(routePolyline);
+            routePolyline = L.polyline([[fromLat, fromLon], [toLat, toLon]], { color: '#2ecc71', weight: 5, dashArray: '6, 6' }).addTo(mapInstance);
+        }
+
+        function stopWalkingNavigation() {
+            if (watchPositionId !== null) {
+                navigator.geolocation.clearWatch(watchPositionId);
+                watchPositionId = null;
+            }
+            activeTargetStore = null;
+            if (routePolyline) mapInstance.removeLayer(routePolyline);
+            document.getElementById('walking-hud').style.display = 'none';
+            document.querySelectorAll('.store-item').forEach(el => el.classList.remove('active-route'));
+        }
+
+        function centerOnUser() {
+            if (mapInstance) mapInstance.setView([userLat, userLon], 16);
+        }
+
+        // 4. ЗАМЕНА ПРИМИТИВНОГО СОМЕЛЬЕ В СКАНЕРЕ
+        async function loadScannerSommelier(slug) {
+            const res = await fetch(`/api/v2/wine/${slug}/full-sommelier`);
+            const data = await res.json();
+            const box = document.getElementById('scanner-sommelier-output');
+
+            box.innerHTML = data.evidence_pairings.map(p => `
+        <div class="dish-box" style="margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between;">
+            <strong>🍽 ${p.dish.title}</strong>
+            <span class="badge">🔥 Синергия ${p.synergy_score}%</span>
+          </div>
+          <p style="font-size:12px; color:var(--text-muted); margin:4px 0;">${p.dish.subtitle}</p>
+          ${p.evidence_base.map(ev => `
+            <div style="font-size:12px; margin-top:4px; color:#e6d5dc;">
+              \${ev.icon} <b>${ev.badge_title} (${ev.wine_metric_label} vs ${ev.dish_metric_label}):</b>${ev.scientific_explanation}
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+        }
+
+        // 5. ЗАКЛАДКА «СОМЕЛЬЕ» (ТОСТЫ К СОБЫТИЮ + СОВЕТ С ПРИВЯЗКОЙ К КАТАЛОГУ)
+        async function askSommelier() {
+            const occasion = document.getElementById('sommelier-occasion').value;
+            const wine_slug = document.getElementById('sommelier-wine-select').value;
+            const question = document.getElementById('sommelier-question').value;
+
+            const res = await fetch('/api/v2/sommelier/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ occasion, wine_slug, question })
+            });
+            const data = await res.json();
+
+            document.getElementById('sommelier-answer-box').innerHTML = `
+        <div class="card">
+          <span class="badge">🥂 Авторский тост сомелье</span>
+          <h3 style="color:var(--wine-accent); margin:6px 0;">${data.toast.toast_title}</h3>
+          <p style="font-size:14px; line-height:1.55; font-style:italic; background:rgba(255,255,255,0.04); padding:12px; border-radius:10px;">
+            «${data.toast.toast_text}»
+          </p>
+          <p style="font-size:13px; margin-top:12px; line-height:1.45;">
+            ${data.toast.sommelier_advice}
+          </p>
+          <h4 style="margin:14px 0 8px;">🔄 Похожие вина из каталога (если захотите альтернативу):</h4>
+          ${data.recommended_catalog_wines.map(a => `
+            <div class="dish-box">
+              <strong>\${a.badge_label}: ${a.wine_name}</strong> (${a.price_rub} ₽)
+              <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">\${a.comparison_note}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+        }
+
+        // Автозагрузка каталога при старте
+        window.addEventListener('DOMContentLoaded', () => loadCatalog());
+    </script>
+</body>
+
+</html>

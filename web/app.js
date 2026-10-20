@@ -454,11 +454,8 @@ const btnResetLocal = document.getElementById('btn-reset-local');
 const statusText = document.getElementById('status-text');
 const statusDot = document.querySelector('.status-dot');
 
-// Override config.apiBase with saved localStorage if present
-const savedApiUrl = localStorage.getItem('vina_api_url');
-if (savedApiUrl !== null) {
-    config.apiBase = savedApiUrl;
-}
+// В docker-сборке API и статика на одном хосте
+config.apiBase = '';
 
 function openSettings() {
     if (inputApiUrl) inputApiUrl.value = localStorage.getItem('vina_api_url') || '';

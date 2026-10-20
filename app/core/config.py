@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,22 +18,192 @@ class Settings(BaseSettings):
     dino_model_path: Path = Path("models/dinov2_label_finetuned")
     dino_base_model_path: Path = Path("models/dinov2-small")
     yolo_model_path: Path = Path("models/yolo_label.pt")
+    yolo_seg_model_path: Path = Path("models/yolo_seg.pt")
     embedding_model_name: str = "dinov2-label-v1"
+    embedding_model_v2_name: str = "dinov2-label-v2-rectified"
+    dino_v3_model_path: Path = Path("models/dinov2_label_finetuned_v3")
+    dino_v3_base_model_path: Path = Path("models/dinov2-base")
+    embedding_model_v3_name: str = "dinov2-base-label-v3-lora"
     embedding_dimension: int = 384
+    embedding_dimension_v3: int = 768
     canonical_size: int = 256
+    canonical_size_v3: int = 518
+    enable_sift_rerank_v3: bool = True
+    sift_rerank_v3_threshold: float = 0.85
+    v3_vote_pool_size: int = 50
     yolo_confidence: float = Field(0.25, ge=0, le=1)
+    yolo_seg_confidence: float = Field(0.25, ge=0, le=1)
     max_upload_bytes: int = Field(10_485_760, ge=1024)
     max_image_pixels: int = Field(25_000_000, ge=65_536)
     max_top_k: int = Field(20, ge=1, le=100)
     candidate_pool_size: int = Field(20, ge=1, le=100)
     gpu_concurrency: int = Field(1, ge=1, le=8)
     sift_concurrency: int = Field(2, ge=1, le=16)
+    enable_sift_rerank: bool = Field(False)
     cors_origins: str = ""
     log_level: str = "INFO"
+    # v4 SigLIP 2 pipeline
+    siglip_v4_model_path: Path = Path("models/siglip2_v4_finetuned")
+    siglip_v4_base_model_path: Path = Path("models/siglip2-base-patch16-512")
+    embedding_model_v4_name: str = "siglip2-v4"
+    embedding_dimension_v4: int = 768
+    canonical_size_v4: int = 518          # server dataset is 518×518 (same letterbox as v3)
+    enable_ocr_rerank_v4: bool = True
+    ocr_rerank_weight_sim: float = 0.5
+    ocr_rerank_weight_vintage: float = 0.3
+    ocr_rerank_weight_text: float = 0.2
+    v4_vote_pool_size: int = Field(50, ge=1, le=500)
+    v4_candidate_pool_size: int = Field(20, ge=1, le=100)
+    # Cascade: DINOv2 candidates -> SigLIP 2 + DINOv2 score fusion -> found / probable / not_in_catalog.
+    # Thresholds are calibrated on tmp/1 + tmp/2 + labelled real photos (docs/RECOGNITION_QUALITY.md).
+    cascade_candidate_pool: int = Field(30, ge=2, le=200)
+    cascade_v1_weight: float = Field(0.3, ge=0.0, le=2.0)
+    cascade_found_min_similarity: float = Field(0.83, ge=0.0, le=1.0)
+    cascade_found_min_margin: float = Field(0.15, ge=0.0, le=4.0)
+    cascade_reject_below_similarity: float = Field(0.55, ge=0.0, le=1.0)
+    cascade_predict_threshold: float | None = Field(None, ge=0.0, le=1.0)
+    # Twin stage: same-producer candidates within this fusion gap are reordered by the regions where their labels differ
+    enable_cascade_twin_resolver: bool = True
+    cascade_twin_max_gap: float = Field(0.15, ge=0.0, le=4.0)
+    cascade_twin_pool: int = Field(3, ge=2, le=10)
+
+    @model_validator(mode="after")
+    def check_cascade_zones(self) -> "Settings":
+        # «нет в каталоге» must lie below «найдено», otherwise the «похоже» zone would be inverted
+        if self.cascade_reject_below_similarity > self.cascade_found_min_similarity:
+            raise ValueError("CASCADE_REJECT_BELOW_SIMILARITY must not exceed CASCADE_FOUND_MIN_SIMILARITY")
+        return self
+
+    sommelier_csv_path: Path = Path("app/sommelier/data/wines_integrated.csv")
+    sommelier_max_sessions: int = Field(500, ge=1, le=100_000)
+    sommelier_session_ttl_seconds: int = Field(3600, ge=60, le=86_400)
+    # Необязательный LLM-слой сомелье (Google Gemini): без ключа ответы строятся по шаблонам движка
+    google_api_key: SecretStr | None = None
+    sommelier_llm_model: str = "gemini-flash-latest"
+    sommelier_llm_timeout_seconds: float = Field(20.0, gt=0, le=120)
+    # Подбор «блюдо → сорт → бутылка» (docs/SOMMELIER_PAIRING.md): источник бутылок и LLM-провайдер.
+    # Рекомендуются только российские вина каталога; service — каталог сканера (sommelier_csv_path)
+    catalog_source: Literal["service", "demo", "retail"] = "service"
+    retail_source_kind: Literal["csv", "api"] = "csv"
+    retail_source_url: str = ""
+    retail_api_key: SecretStr | None = None
+    retail_refresh_cron: str = "0 5 * * *"
+    sommelier_llm_provider: Literal["gemini", "none"] = "gemini"
 
     @property
     def allowed_origins(self) -> list[str]:
         return [value.strip() for value in self.cors_origins.split(",") if value.strip()]
+
+    @property
+    def resolved_yolo_model_path(self) -> Path:
+        if self.yolo_model_path.is_file():
+            return self.yolo_model_path
+        if Path("/models/yolo_label.pt").is_file():
+            return Path("/models/yolo_label.pt")
+        base = Path(__file__).resolve().parent.parent.parent
+        cand = base / "models" / "yolo_label.pt"
+        if cand.is_file():
+            return cand
+        return self.yolo_model_path
+
+    @property
+    def resolved_yolo_seg_model_path(self) -> Path:
+        if self.yolo_seg_model_path.is_file():
+            return self.yolo_seg_model_path
+        if Path("/models/yolo_seg.pt").is_file():
+            return Path("/models/yolo_seg.pt")
+        base = Path(__file__).resolve().parent.parent.parent
+        cand = base / "models" / "yolo_seg.pt"
+        if cand.is_file():
+            return cand
+        return self.yolo_seg_model_path
+
+    @property
+    def resolved_sommelier_csv_path(self) -> Path:
+        if self.sommelier_csv_path.is_file():
+            return self.sommelier_csv_path
+        cand = Path(__file__).resolve().parent.parent / "sommelier" / "data" / "wines_integrated.csv"
+        if cand.is_file():
+            return cand
+        return self.sommelier_csv_path
+
+    @property
+    def resolved_siglip_v4_model_path(self) -> Path:
+        base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            self.siglip_v4_model_path,
+            Path("/models/siglip2_v4_finetuned"),
+            self.media_dir / "models" / "siglip2_v4_finetuned",
+            base / "models" / "siglip2_v4_finetuned",
+        ]
+        for cand in candidates:
+            if cand.is_dir() and ((cand / "adapter_model.bin").is_file() or (cand / "adapter_model.safetensors").is_file()):
+                return cand
+        for cand in candidates:
+            if cand.is_dir():
+                return cand
+        return self.siglip_v4_model_path
+
+    @property
+    def resolved_siglip_v4_base_model_path(self) -> Path:
+        base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            self.siglip_v4_base_model_path,
+            Path("/models/siglip2-base-patch16-512"),
+            self.media_dir / "models" / "siglip2-base-patch16-512",
+            base / "models" / "siglip2-base-patch16-512",
+        ]
+        for cand in candidates:
+            if cand.is_dir() and ((cand / "model.safetensors").is_file() or (cand / "pytorch_model.bin").is_file()):
+                return cand
+        for cand in candidates:
+            if cand.is_dir():
+                return cand
+        return self.siglip_v4_base_model_path
+
+    @property
+    def resolved_dino_model_path(self) -> Path:
+        base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            self.dino_model_path,
+            Path("/models/dinov2_label_finetuned"),
+            self.media_dir / "models" / "dinov2_label_finetuned",
+            base / "models" / "dinov2_label_finetuned",
+        ]
+        for cand in candidates:
+            if cand.is_dir() and ((cand / "adapter_model.bin").is_file() or (cand / "adapter_model.safetensors").is_file()):
+                return cand
+        for cand in candidates:
+            if cand.is_dir():
+                return cand
+        return self.dino_model_path
+
+    @property
+    def resolved_dino_base_model_path(self) -> Path:
+        base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            self.dino_base_model_path,
+            Path("/models/dinov2-small"),
+            self.media_dir / "models" / "dinov2-small",
+            base / "models" / "dinov2-small",
+        ]
+        for cand in candidates:
+            if cand.is_dir() and ((cand / "model.safetensors").is_file() or (cand / "pytorch_model.bin").is_file()):
+                return cand
+        for cand in candidates:
+            if cand.is_dir():
+                return cand
+        return self.dino_base_model_path
+
+    @property
+    def resolved_sommelier_feedback_path(self) -> Path:
+        """Пишем фидбек сомелье в media_dir: app/ в проде смонтирован read-only, media — единственный writable путь."""
+        return self.media_dir / "sommelier" / "feedback.jsonl"
+
+    @property
+    def resolved_sommelier_llm_log_path(self) -> Path:
+        """Журнал промптов и ответов LLM подбора (ТЗ п. 5.3) — тоже в media_dir, без данных о личности."""
+        return self.media_dir / "sommelier" / "pairing_llm_log.jsonl"
 
 
 @lru_cache

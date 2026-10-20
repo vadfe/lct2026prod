@@ -1,28 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- API Configuration & Bridge Support ---
     function getApiBase() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const apiParam = urlParams.get('api');
-        if (apiParam) {
-            const clean = apiParam.trim().replace(/\/+$/, '');
-            localStorage.setItem('vina_api_url', clean);
-            return clean;
-        }
-
-        // Always prefer direct local connection if running locally
-        const isLocalHost = window.location.hostname === 'localhost' || 
-                            window.location.hostname === '127.0.0.1' || 
-                            window.location.hostname === '0.0.0.0' ||
-                            window.location.port === '8080' ||
-                            !window.location.hostname;
-        if (isLocalHost) {
-            return '';
-        }
-
-        const saved = localStorage.getItem('vina_api_url');
-        if (saved) {
-            return saved.trim().replace(/\/+$/, '');
-        }
+        // В docker-сборке API и статика всегда на одном хосте
         return '';
     }
 
@@ -219,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('image', file, 'snapshot.jpg');
                 
-                const predictEndpoint = apiUrl('/v1/eval/predict');
+                const predictEndpoint = apiUrl('/api/v1/search');
                 const res = await fetch(predictEndpoint, {
                     method: 'POST',
                     body: formData
@@ -228,12 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
                 const data = await res.json();
                 
-                if (data.slug) {
-                    const conf = data.confidence !== undefined ? data.confidence : data.score;
+                if (data.winner) {
+                    const conf = data.winner.confidence;
                     if (typeof window.setConfidence === 'function' && conf !== undefined && conf !== null) {
                         window.setConfidence(conf);
                     }
-                    await loadWineCard(data.slug);
+                    await loadWineCard(data.winner);
                     showView(resultView);
                 } else {
                     alert('Вино не найдено в каталоге. Попробуйте другой ракурс.');
@@ -290,24 +269,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Load Wine Metadata & Image ---
-    async function loadWineCard(slug) {
-        currentSlug = slug;
-        const res = await fetch(apiUrl(`/api/wine/${slug}`));
-        if (!res.ok) throw new Error('Карточка не найдена');
-        const wine = await res.json();
+    async function loadWineCard(wine) {
+        currentSlug = wine.slug || wine.product_id;
         
         // Image URL through API bridge
-        imgWine.src = apiUrl(`/api/image/${slug}`);
+        imgWine.src = apiUrl(wine.bottle_image_url || wine.image_url);
         imgWine.onerror = () => { imgWine.src = 'https://via.placeholder.com/300x500?text=Wine'; };
         
-        elWinery.textContent = wine.winery || '';
-        elTitle.textContent = wine.name || slug;
+        elWinery.textContent = wine.manufacturer || '';
+        elTitle.textContent = wine.title || currentSlug;
         elColor.textContent = wine.color || '';
         elCategory.textContent = wine.category || '';
         elRegion.textContent = wine.region || '';
         elGrape.textContent = wine.grape || '';
         elDesc.textContent = wine.description || '';
-        if(typeof initRating === 'function') initRating(slug);
+        if(typeof initRating === 'function') initRating(currentSlug);
     }
 
     btnBack.addEventListener('click', () => {
