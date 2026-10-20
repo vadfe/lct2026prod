@@ -29,6 +29,23 @@ def test_only_catalog_wines():
         assert {p["id"] for p in picks(q)["picks"]} <= IDS
 
 
+def test_context_merge_starts_sweetness_from_none():
+    """Регрессия 500 в /api/sommelier/ask: у нового контекста sweet_ok = None, первое уточнение сладости не падает."""
+    from app.sommelier.engine import Context
+    ctx = Context()
+    ctx.merge(Context(sweet_ok={0}))
+    assert ctx.sweet_ok == {0}
+    ctx.merge(Context(sweet_ok={1}))
+    assert ctx.sweet_ok == {0, 1}
+
+
+def test_first_message_with_sweetness_is_a_recommendation():
+    r = picks("белое сухое к рыбе")
+    assert {p["id"] for p in r["picks"]} <= IDS
+    follow = S.ask("а что-нибудь полусладкое?")
+    assert follow["kind"] in ("recommendation", "clarify"), follow
+
+
 def test_dessert_not_dry():
     r = picks("к десерту, тирамису")
     assert all((w["features"]["sweetness"] or 0) >= 2 for w in feats(r)[:2]), [w["name"] for w in feats(r)]

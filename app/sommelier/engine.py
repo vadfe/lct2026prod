@@ -47,7 +47,8 @@ class Context:
             if k in ("notes",):
                 self.notes += [n for n in v if n not in self.notes]
             elif isinstance(v, set):
-                setattr(self, k, getattr(self, k) | v)
+                current = getattr(self, k)   # sweet_ok starts as None ("any sweetness"), not as an empty set
+                setattr(self, k, set(v) if current is None else current | v)
             elif v not in (None, False, "") and not (k == "experience" and v == "novice"):
                 setattr(self, k, v)
         return self
