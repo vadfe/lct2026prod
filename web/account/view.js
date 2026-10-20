@@ -92,8 +92,8 @@ function renderHeaderButton() {
     const logged = store.isLoggedIn();
     btn.classList.toggle('logged', logged);
     btn.title = logged ? `Личный кабинет: ${account.name}` : 'Войти в личный кабинет';
-    btn.replaceChildren(artSvg('ui', 'account', { size: logged ? 30 : 22 }));
-    if (!logged) btn.append(el('span', 'acc-header-label', 'Войти'));
+    btn.replaceChildren(artSvg('ui', 'account', { size: logged ? 28 : 22 }));
+    btn.append(el('span', 'acc-header-label', logged ? account.name : 'Войти'));
 }
 
 function refreshAll() {
@@ -620,11 +620,17 @@ export function onWineShown(winner, status, info, imageUrl, record = true) {
     renderWineActions();
 }
 
+// Рецензия к вину на экране результата (кнопка в панели «Моя оценка»): карточка вина с полем заметки
+export function openWineReview() {
+    if (currentWine) openWine(currentWine);
+}
+
+// «В погреб» в углу фото: без входа — ведёт на вход; рецензия — из панели «Моя оценка» (openWineReview)
 function renderWineActions() {
-    const anchor = $('rating-section');
-    if (!anchor) return;
     let box = $('acc-wine-actions');
     if (!box) {
+        const anchor = $('rating-section');
+        if (!anchor) return;
         box = el('div', 'acc-wine-actions');
         box.id = 'acc-wine-actions';
         anchor.after(box);
@@ -633,7 +639,9 @@ function renderWineActions() {
     if (!currentWine) return;
     const wine = currentWine;
     if (!store.isLoggedIn()) {
-        box.replaceChildren(button('acc-btn', 'Войти и сохранить в «Винный погреб»', openAccount, artSvg('ui', 'account', { size: 22 })));
+        const login = button('acc-btn', 'В погреб', openAccount, artSvg('ui', 'cellar', { size: 22 }));
+        login.title = 'Войдите в личный кабинет, чтобы сохранять вина в «Винный погреб»';
+        box.replaceChildren(login);
         return;
     }
     const on = store.inCellar(wine.slug);
@@ -641,6 +649,6 @@ function renderWineActions() {
         store.toggleCellar(wine);
         refreshAll();
     }, artSvg('ui', 'cellar', { size: 22 }));
-    const noteBtn = button('acc-btn', store.getReview(wine.slug) ? 'Моя заметка' : 'Заметка', () => openWine(wine), artSvg('ui', 'note', { size: 22 }));
-    box.replaceChildren(cellarBtn, noteBtn);
+    cellarBtn.title = on ? 'Убрать из «Винного погреба»' : 'Добавить в «Винный погреб» — это лайк для вашего профиля';
+    box.replaceChildren(cellarBtn);
 }

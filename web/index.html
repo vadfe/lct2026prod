@@ -165,6 +165,8 @@
                 <div class="wine-card">
                     <div class="wine-image-container">
                         <img id="wine-image" src="" alt="">
+                        <!-- «В погреб» (личный кабинет) — левый верхний угол фото, напротив «Моя оценка» -->
+                        <div id="acc-wine-actions" class="acc-wine-actions cellar-corner"></div>
                         <button type="button" class="people-rating-badge" id="people-rating-badge" aria-expanded="false" aria-controls="rating-section" title="Поставить свою оценку">
                             <span class="badge-icon-wrapper">
                                 <img src="img/glass_filled_straight.png" alt="" class="badge-icon">
@@ -186,7 +188,11 @@
                         <div id="user-rating-text">Ваша оценка: - из 5</div>
                         <div class="stats-small">Оценки хранятся на этом устройстве</div>
                     </div>
-                </section>
+                    <div class="rate-review">
+                        <p class="stats-small" id="rate-review-hint">Расскажите, чем запомнилось вино</p>
+                        <button type="button" class="acc-btn small" id="btn-rate-review">Написать рецензию</button>
+                    </div>
+                    </section>
 
 
                     <div class="wine-info">
@@ -211,17 +217,22 @@
                     </div>
                 </div>
 
-                <!-- Действия с вином: погреб и заметка (личный кабинет) + сомелье по кнопке -->
-                <div class="wine-actions-row">
-                    <div id="acc-wine-actions" class="acc-wine-actions"></div>
-                    <button type="button" class="acc-btn" id="btn-somm-toggle" aria-expanded="false" aria-controls="sommelier-section">
-                        <img src="img/glass_filled_straight.png" alt="" class="acc-btn-icon"><span>Сомелье</span>
-                    </button>
-                </div>
+                <!-- Тяжёлые блоки свёрнуты: раскрываются по нажатию, экран не превращается в длинную ленту -->
+                <details class="section-card fold" id="wine-pairing-section">
+                    <summary><h3>Подойдёт к блюдам</h3><span class="fold-hint">5 блюд и похожие российские вина</span></summary>
+                    <div id="wine-pairing"></div>
+                </details>
 
-                <!-- Цифровой сомелье к распознанному вину: открывается кнопкой «Сомелье» -->
-                <section class="sommelier-section hidden" id="sommelier-section">
-                    <h3><div class="badge-icon-wrapper"><img src="img/glass_filled_straight.png" class="badge-icon" alt=""></div>Цифровой сомелье</h3>
+                <details class="section-card fold" id="alternatives-section">
+                    <summary><h3>Похожие вина из каталога</h3><span class="fold-hint">по стилю: цвет, сладость, сорт, регион</span></summary>
+                    <div id="alternatives-list"></div>
+                </details>
+            </div>
+
+            <!-- Цифровой сомелье: подбор к этому вину (если вино найдено) и чат — всегда доступен, особенно если вина нет в каталоге -->
+            <details class="section-card fold" id="chat-section">
+                <summary><h3>Цифровой сомелье</h3><span class="fold-hint">к блюду, о вине или любой вопрос</span></summary>
+                <section class="sommelier-section hidden" id="sommelier-section" aria-label="Сомелье к этому вину">
                     <p id="somm-note-probable" class="somm-note hidden">Ответ «похоже»: если на этикетке другое вино, посмотрите других кандидатов вверху экрана.</p>
                     <p>К чему вы подбираете это вино?</p>
                     <div class="pairing-options">
@@ -249,21 +260,6 @@
                 </section>
 
                 <!-- Что к этой бутылке (С2) и «Похожее, но российское» (С3) — по справочнику сортов -->
-                <!-- Тяжёлые блоки свёрнуты: раскрываются по нажатию, экран не превращается в длинную ленту -->
-                <details class="section-card fold" id="wine-pairing-section">
-                    <summary><h3>Подойдёт к блюдам</h3><span class="fold-hint">5 блюд и похожие российские вина</span></summary>
-                    <div id="wine-pairing"></div>
-                </details>
-
-                <details class="section-card fold" id="alternatives-section">
-                    <summary><h3>Похожие вина из каталога</h3><span class="fold-hint">по стилю: цвет, сладость, сорт, регион</span></summary>
-                    <div id="alternatives-list"></div>
-                </details>
-            </div>
-
-            <!-- Чат с сомелье: всегда доступен, особенно если вина нет в каталоге -->
-            <details class="section-card fold" id="chat-section">
-                <summary><h3>Спросить сомелье</h3><span class="fold-hint">блюдо, вкус или любой вопрос о вине</span></summary>
                 <p id="chat-hint">Опишите блюдо или вкус — сомелье подберёт вино из каталога.</p>
                 <form class="ask-form" id="chat-form">
                     <input type="text" id="chat-input" maxlength="300" placeholder="Например: стейк, люблю бархатные красные">

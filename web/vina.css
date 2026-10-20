@@ -1480,11 +1480,17 @@ button.people-rating-badge[aria-expanded="true"] { background: #f9f1f1; border-c
 .rating-pop .glass-img { height: 34px; }
 .rating-pop .rating-stats { font-size: 13px; }
 
-/* Ряд действий под карточкой: «В погреб», «Заметка» (кабинет) и «Сомелье» */
-.wine-actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 16px; }
-.wine-actions-row > .acc-wine-actions { display: contents; }
-.acc-btn-icon { width: 20px; height: 22px; object-fit: contain; }
-#sommelier-section { margin-bottom: 16px; }
+/* «В погреб» — левый верхний угол фото, напротив «Моя оценка» (кнопку строит account/view.js) */
+.acc-wine-actions.cellar-corner { position: absolute; top: 16px; left: 16px; z-index: 6; margin: 0; }
+.cellar-corner .acc-btn { padding: 4px 12px 4px 6px; border-radius: 12px; font-size: 13px; background: #f1f3f5; border-color: #ebe5df; }
+.cellar-corner .acc-btn.on { background: #f9f1f1; border-color: #edd4d6; color: var(--primary); }
+
+/* Рецензия — в той же панели, что и оценка */
+.rate-review { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ebe5df; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+/* Подбор к этому вину — верхняя часть раскрывашки «Цифровой сомелье», без собственной карточки */
+#chat-section .sommelier-section { padding: 0; background: none; box-shadow: none; border-radius: 0; margin-bottom: 14px; }
+#chat-section .sommelier-section + #chat-hint { padding-top: 14px; border-top: 1px dashed #ebe5df; }
 
 /* Шрифты: на мобильном мельче 13 px не читается (подписи шкал-гроздей в узких колонках — 12 px) */
 .people-rating-badge, .stats-small, .field-hint, .list-item .noimg, .item-reasons, .wd-title, .wd-chip, .wd-scale-label,

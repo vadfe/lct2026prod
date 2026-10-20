@@ -1,5 +1,5 @@
 import { loadDetector, detect, draw } from './detector.js';
-import { initAccount, onWineShown } from './account/view.js';
+import { initAccount, onWineShown, openWineReview } from './account/view.js';
 
 // Сканер «Своё Вино»: фото -> каскад (/api/cascade/search) -> ответ «найдено» / «похоже» / «нет в каталоге» + сомелье.
 // На сервер всегда уходит полный кадр или исходное фото: этикетку вырезает серверная YOLO, и пороги зон ответа
@@ -129,7 +129,8 @@ function renderResult(data, id, originalUrl) {
     // новый ответ — блоки снова свёрнуты; без вина в каталоге сразу раскрыты кандидаты и чат
     ['wine-desc-fold', 'wine-pairing-section', 'alternatives-section'].forEach(key => { $(key).open = false; });
     setRatingOpen(false);
-    setSommelierOpen(false);
+    $('rate-review-hint').textContent = 'Расскажите, чем запомнилось вино';
+    $('sommelier-section').classList.toggle('hidden', !winner);   // подбор к этому вину — внутри «Цифрового сомелье»
     $('candidates-section').open = !winner;
     $('chat-section').open = !winner;
     if (showCandidates) {
@@ -553,7 +554,7 @@ function renderAbout(node, info) {
 
 $('btn-chat').addEventListener('click', () => {
     $('chat-section').open = true;
-    $('chat-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('chat-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('chat-input').focus({ preventScroll: true });
 });
 
@@ -1055,7 +1056,7 @@ function initRating(key) {
             rating = value;
             storage.set(storageKey, String(rating));
             paint(0);
-            setTimeout(() => setRatingOpen(false), 450);   // оценка видна на кнопке «Моя оценка»
+            $('rate-review-hint').textContent = 'Спасибо! Хотите написать рецензию?';
         };
     });
     paint(0);
@@ -1074,14 +1075,8 @@ document.addEventListener('click', event => {
     if ($('rating-section').classList.contains('open') && !$('rating-section').contains(event.target)) setRatingOpen(false);
 });
 
-// «Сомелье» рядом с «В погреб» / «Заметка» открывает блок цифрового сомелье
-function setSommelierOpen(open) {
-    $('sommelier-section').classList.toggle('hidden', !open);
-    $('btn-somm-toggle').classList.toggle('on', open);
-    $('btn-somm-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) $('sommelier-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-$('btn-somm-toggle').addEventListener('click', () => setSommelierOpen($('sommelier-section').classList.contains('hidden')));
+// Рецензия — из той же панели, что и оценка (карточка вина личного кабинета)
+$('btn-rate-review').addEventListener('click', () => { setRatingOpen(false); openWineReview(); });
 
 // ---------- Проверка набора фото: каждое фото по очереди проходит тот же каскад ----------
 const IMAGE_FILE = /\.(jpe?g|png|webp)$/i;
