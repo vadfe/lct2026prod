@@ -9,6 +9,10 @@ __pycache__/
 htmlcov/
 .idea/
 .vscode/
+.cursor/
+agent_docs/
+.cache/
+.trash/
 media/*
 !media/.gitkeep
 postgres-data/

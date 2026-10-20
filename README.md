@@ -18,10 +18,10 @@
 
 | Что | Ссылка |
 |---|---|
-| **Сканер этикеток (основной, каскад)** | http://localhost:8080/search-cascade |
+| **Сканер «Своё Вино» (основной: каскад, сомелье, оценка)** | http://localhost:8080/ (→ `/mobi/`) |
+| Каскадный поиск с диагностикой шагов | http://localhost:8080/search-cascade |
 | Мобильный сканер каскада (камера телефона) | http://localhost:8080/mobi-cascade |
 | Автономный мобильный сканер | http://localhost:8080/export/mobitest_cascade.html |
-| Мобильный сканер «Своё Вино» (каскад, сомелье, оценка) | http://localhost:8080/mobi/ |
 | Каталог вин | http://localhost:8080/products |
 | Добавление вина в каталог | http://localhost:8080/add |
 | Пакетный импорт каталога | http://localhost:8080/import |

@@ -1,0 +1,235 @@
+/* Личный кабинет «Своё Вино» — палитра vino-svoe (как у подбора сомелье в vina.css), свои переменные, vina.css не меняется */
+.acc, .acc-modal, .acc-wine-actions, .rating-pop, .acc-header-btn, #account-view {
+    --acc-bg: #fefdfa; --acc-card: #ffffff; --acc-ink: #2c2a28; --acc-ink-2: #423f3c; --acc-muted: #857e79;
+    --acc-line: #ebe5df; --acc-border: #ebe9e9; --acc-wine: #8f3d42; --acc-wine-soft: #f9f1f1; --acc-wine-line: #edd4d6;
+    --acc-sage: #8fb48a; --acc-pistachio: #b9c98c; --acc-honey: #e2b97f; --acc-rose: #cf8f88; --acc-gold: #e2c77f;
+    --acc-serif: 'Playfair Display', Georgia, serif;
+}
+
+/* Шестерёнка «адрес сервера» и индикатор «онлайн» были нужны для туннеля; адрес берётся из ссылки ?api= (обработчики в app.js остаются) */
+#btn-settings, #server-status { display: none; }
+
+.acc-header-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border: 1px solid var(--acc-wine-line);
+    border-radius: 999px; background: var(--acc-wine-soft); color: var(--acc-wine); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.acc-header-btn.logged { padding: 2px 12px 2px 2px; border-color: var(--acc-line); background: #fff; color: var(--acc-ink-2); }
+.acc-header-label { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#account-view { background: var(--acc-bg); }
+.acc-topbar { margin-bottom: 8px; }
+.acc { display: flex; flex-direction: column; gap: 14px; color: var(--acc-ink); }
+
+.acc-card {
+    padding: 16px; border-radius: 20px; background: var(--acc-card); border: 1px solid var(--acc-border);
+    box-shadow: 0 10px 30px rgba(44, 42, 40, .06);
+}
+.acc-kicker { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--acc-muted); }
+.acc-title { font-family: var(--acc-serif); font-size: 20px; font-weight: 600; line-height: 1.25; margin: 4px 0 6px; color: var(--acc-ink); }
+.acc-name { font-family: var(--acc-serif); font-size: 22px; font-weight: 600; margin: 0; }
+.acc-muted { font-size: 13px; color: var(--acc-muted); line-height: 1.4; }
+.acc-lead { font-size: 14px; color: var(--acc-ink-2); line-height: 1.5; margin: 6px 0 12px; }
+.acc-note { font-size: 12px; color: var(--acc-muted); margin-top: 10px; }
+.acc-caption { font-family: var(--acc-serif); font-style: italic; font-size: 15px; color: var(--acc-wine); margin: 0 0 10px; }
+.acc-rule { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--acc-line); font-size: 13px; color: var(--acc-muted); line-height: 1.45; }
+.acc-big { font-family: var(--acc-serif); font-size: 26px; font-weight: 600; color: var(--acc-ink); line-height: 1; }
+
+/* кнопки */
+.acc-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--acc-line);
+    background: #fff; color: var(--acc-ink-2); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.acc-btn:hover { border-color: var(--acc-wine-line); background: var(--acc-wine-soft); }
+.acc-btn.primary { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; }
+.acc-btn.primary:disabled { opacity: .45; cursor: default; }
+.acc-btn.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); }
+.acc-btn.small { padding: 8px 12px; font-size: 14px; border-radius: 10px; }
+.acc-btn.danger { color: #9a4f4c; }
+.acc-actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+
+/* вход */
+.acc-login { text-align: center; display: flex; flex-direction: column; align-items: center; }
+.acc-provider {
+    display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 320px; margin-top: 10px;
+    padding: 11px 16px; border-radius: 14px; border: 1px solid var(--acc-line); background: #fff; font: inherit; font-size: 15px; font-weight: 600;
+    color: var(--acc-ink); cursor: pointer;
+}
+.acc-provider:hover { background: var(--acc-wine-soft); border-color: var(--acc-wine-line); }
+
+/* квиз */
+.acc-quiz-group { margin-top: 12px; }
+.acc-quiz-label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--acc-muted); margin: 12px 0 6px; }
+.acc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.acc-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--acc-line);
+    background: #faf7f4; color: var(--acc-ink-2); font: inherit; font-size: 14px; cursor: pointer;
+}
+.acc-chip.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); font-weight: 600; }
+
+/* профиль */
+.acc-profile-head { display: flex; align-items: center; gap: 12px; }
+
+/* путь лозы */
+.acc-vine { display: flex; align-items: center; gap: 14px; }
+.acc-vine-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.acc-bar { height: 10px; border-radius: 999px; background: #efe9e3; overflow: hidden; box-shadow: inset 0 1px 2px rgba(44, 42, 40, .1); }
+.acc-bar span {
+    display: block; height: 100%; border-radius: inherit;
+    background: linear-gradient(90deg, var(--acc-rose), #e4ad7f 28%, #e2c77f 52%, var(--acc-pistachio) 76%, var(--acc-sage));
+    transition: width .6s cubic-bezier(.2, .7, .2, 1);
+}
+.acc-stages { display: flex; justify-content: space-between; margin-top: 12px; }
+.acc-stage { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--acc-muted); padding: 4px; border-radius: 12px; }
+.acc-stage.current { background: var(--acc-wine-soft); color: var(--acc-wine); font-weight: 600; }
+
+/* палитра */
+.acc-shift { margin: 8px 0 4px; padding: 8px 10px; border-radius: 12px; background: #fbf2e3; color: #96692c; font-size: 13px; }
+.acc-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; align-items: stretch; }
+.acc-palette-head { font-size: 10px; color: var(--acc-muted); text-align: center; align-self: end; }
+.acc-palette-row { font-size: 11px; font-weight: 600; color: var(--acc-ink-2); align-self: center; }
+.acc-palette-cell {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 12px; font-size: 13px; font-weight: 600; color: var(--acc-ink-2);
+    background: color-mix(in srgb, var(--acc-wine-soft) calc(var(--w, 0) * 100%), #faf8f6); border: 1px solid transparent;
+}
+.acc-palette-cell.main { border-color: var(--acc-wine); background: var(--acc-wine-soft); font-weight: 700; color: var(--acc-wine); }
+
+/* регионы */
+.acc-regions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
+.acc-region { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; }
+.acc-region-title { font-size: 13px; font-weight: 600; color: var(--acc-ink-2); line-height: 1.25; }
+.acc-region:not(.earned) .acc-region-title { color: var(--acc-muted); }
+
+/* статусы */
+.acc-status { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.acc-status + .acc-status { border-top: 1px dashed var(--acc-line); }
+.acc-status-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.acc-status-title { font-family: var(--acc-serif); font-size: 17px; font-weight: 600; }
+.acc-status:not(.earned) .acc-status-title { color: var(--acc-muted); }
+.acc-status-count { font-size: 13px; font-weight: 600; color: var(--acc-ink-2); }
+.acc-status.earned .acc-status-count { color: #4f7a4b; }
+
+/* рекомендации и списки */
+.acc-recs, .acc-list { display: flex; flex-direction: column; gap: 8px; }
+.acc-rec, .acc-row {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 1px solid var(--acc-border); border-radius: 14px;
+    background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.acc-rec:hover, .acc-row:hover { border-color: var(--acc-wine-line); background: var(--acc-wine-soft); }
+.acc-rec-text, .acc-row-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.acc-rec-title, .acc-row-title { font-family: var(--acc-serif); font-size: 15px; font-weight: 600; color: var(--acc-ink); overflow-wrap: anywhere; }
+.acc-rec-note { font-size: 13px; color: #4f7a4b; }
+.acc-row-meta { font-size: 13px; color: var(--acc-ink-2); }
+.acc-thumb { width: 52px; height: 64px; flex-shrink: 0; object-fit: contain; border-radius: 10px; background: #faf5e6; }
+.acc-thumb.empty { display: block; }
+.acc-tabs { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
+.acc-tab {
+    flex-shrink: 0; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
+    font: inherit; font-size: 15px; color: var(--acc-ink-2); cursor: pointer;
+}
+.acc-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
+
+/* окно карточки вина */
+.acc-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
+.acc-modal-backdrop { position: absolute; inset: 0; background: rgba(44, 42, 40, .45); }
+.acc-sheet {
+    position: relative; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; padding: 20px 16px 24px;
+    border-radius: 22px 22px 0 0; background: var(--acc-bg); box-shadow: 0 -10px 30px rgba(44, 42, 40, .2);
+}
+.acc-close {
+    position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: #f4f1ee; color: var(--acc-ink-2); font-size: 20px; line-height: 1; cursor: pointer;
+}
+.acc-sheet-head { display: flex; gap: 12px; align-items: flex-start; padding-right: 36px; margin-bottom: 10px; }
+.acc-sheet-head .acc-thumb { width: 72px; height: 96px; }
+.acc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.acc-tag { padding: 4px 10px; border-radius: 999px; background: #faf7f4; border: 1px solid var(--acc-line); font-size: 13px; color: var(--acc-ink-2); }
+.acc-textarea {
+    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--acc-line); background: #fff;
+    font: inherit; font-size: 14px; line-height: 1.45; color: var(--acc-ink); resize: vertical;
+}
+.acc-textarea:focus { outline: 2px solid var(--acc-wine-line); border-color: var(--acc-wine); }
+.acc-counter { font-size: 13px; color: #96692c; margin-top: 4px; }
+.acc-counter.ok { color: #4f7a4b; }
+
+/* сводка под шапкой */
+.acc-stack { display: flex; flex-direction: column; gap: 14px; }
+.acc-summary { padding: 12px 14px; }
+.acc-profile-who { min-width: 0; }
+.acc-summary .acc-name { font-size: 19px; }
+.acc-sum-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.acc-sum-chip {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding: 6px 2px; min-width: 0;
+    border: 1px solid var(--acc-line); border-radius: 14px; background: #faf8f6; font: inherit; font-size: 14px; font-weight: 600;
+    color: var(--acc-ink-2); cursor: pointer;
+}
+.acc-sum-chip span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-sum-statuses { display: flex; gap: 1px; height: 34px; align-items: center; }
+
+/* карусель */
+.acc-carousel { scroll-margin-top: 90px; }
+.acc-slide-nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+.acc-slide-nav::-webkit-scrollbar { display: none; }
+.acc-slide-tab {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--acc-line); background: #faf7f4;
+    font: inherit; font-size: 15px; color: var(--acc-ink-2); cursor: pointer;
+}
+.acc-slide-tab.on { background: var(--acc-wine); border-color: var(--acc-wine); color: #fff; font-weight: 600; }
+/* Все карточки карусели одной высоты — около половины экрана телефона, чтобы под ними был виден погреб / рецензии / история;
+   длинное содержимое прокручивается внутри карточки */
+.acc-carousel { --acc-slide-h: clamp(300px, 50vh, 440px); }
+@supports (height: 100dvh) { .acc-carousel { --acc-slide-h: clamp(300px, 50dvh, 440px); } }
+.acc-track {
+    display: flex; gap: 12px; height: var(--acc-slide-h); overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.acc-track::-webkit-scrollbar { display: none; }
+.acc-slide {
+    flex: 0 0 100%; height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain;
+    scroll-snap-align: start; scroll-snap-stop: always; scrollbar-width: thin;
+}
+.acc-more { align-self: center; margin-top: 4px; }
+.acc-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.acc-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: none; background: var(--acc-line); cursor: pointer; }
+.acc-dot.on { width: 20px; border-radius: 999px; background: var(--acc-wine); }
+
+/* квиз — палитра с выбором */
+.acc-quiz-grid .acc-palette-cell.pick { cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; background: #faf8f6; border: 1px solid var(--acc-line); }
+.acc-quiz-grid .acc-palette-cell.pick .acc-art { opacity: .55; }
+.acc-quiz-grid .acc-palette-cell.pick.on { background: var(--acc-wine-soft); border-color: var(--acc-wine); color: var(--acc-wine); font-weight: 700; }
+.acc-quiz-grid .acc-palette-cell.pick.on .acc-art { opacity: 1; }
+
+/* оценка бокалами в карточке вина */
+.acc-rating { margin: 6px 0 2px; }
+.acc-glasses { display: flex; gap: 6px; margin-bottom: 4px; }
+.acc-glass { width: 40px; height: 44px; padding: 2px; border: 1px solid var(--acc-line); border-radius: 10px; background: #fff; cursor: pointer; }
+.acc-glass.on { background: var(--acc-wine-soft); border-color: var(--acc-wine-line); }
+.acc-glass img { width: 100%; height: 100%; object-fit: contain; }
+
+/* подсказка «Как пользоваться» */
+.acc-guide summary { cursor: pointer; font-family: var(--acc-serif); font-size: 16px; font-weight: 600; color: var(--acc-wine); }
+.acc-guide-list { margin: 10px 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.45; color: var(--acc-ink-2); }
+
+/* аватар (меню профиля) и «?» (подсказка) */
+.acc-profile-head { position: relative; }
+.acc-avatar { padding: 0; border: none; background: none; border-radius: 50%; cursor: pointer; flex-shrink: 0; }
+button.acc-profile-who { flex: 1; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.acc-help {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--acc-wine-line); background: var(--acc-wine-soft);
+    color: var(--acc-wine); font: inherit; font-family: var(--acc-serif); font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer;
+}
+.acc-login { position: relative; }
+.acc-login > .acc-help { position: absolute; top: 12px; right: 12px; }
+.acc-menu { display: flex; flex-direction: column; margin-top: 14px; border-top: 1px solid var(--acc-line); }
+.acc-menu-item {
+    padding: 14px 4px; border: none; border-bottom: 1px solid var(--acc-line); background: none; text-align: left;
+    font: inherit; font-size: 16px; color: var(--acc-ink); cursor: pointer;
+}
+.acc-menu-item.danger { color: #9a4f4c; }
+
+/* кнопки кабинета в карточке распознанного вина */
+.acc-wine-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+
+@media (max-width: 380px) {
+    .acc-palette { gap: 4px; }
+    .acc-regions { grid-template-columns: repeat(2, 1fr); }
+}

@@ -20,7 +20,7 @@ router = APIRouter(include_in_schema=False)
 
 @router.get("/", response_class=RedirectResponse)
 async def index():
-    return RedirectResponse(url="/products")
+    return RedirectResponse(url="/mobi/")
 
 
 @router.get("/products", response_class=HTMLResponse)
