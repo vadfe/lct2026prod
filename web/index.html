@@ -57,17 +57,6 @@
                 </label>
             </div>
 
-            <div class="controls" style="padding-bottom: 8px;">
-                <label class="btn btn-secondary btn-upload">
-                    <span>Набор фото</span>
-                    <input type="file" id="batch-files-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple hidden>
-                </label>
-                <label class="btn btn-secondary btn-upload">
-                    <span>Папка с фото</span>
-                    <input type="file" id="batch-folder-input" webkitdirectory multiple hidden>
-                </label>
-            </div>
-
             <!-- Вино к блюду (С1, С4, С5) и аналог зарубежного вина: только российские вина каталога -->
             <section class="section-card pairing-section" id="pairing-section">
                 <h3>Вино к блюду</h3>
@@ -76,6 +65,8 @@
                     <input type="text" id="pairing-query" maxlength="300" placeholder="Например: к шашлыку, не сладкое · аналог Шабли">
                     <button type="submit" class="btn btn-primary">Подобрать</button>
                 </form>
+                <details class="fold-inline">
+                <summary>Фильтры: повод, цвет, сладость, бюджет</summary>
                 <div class="pairing-filters">
                     <select id="pairing-scenario" aria-label="Что подбираем">
                         <option value="dish">К блюду</option><option value="gift">Подарок</option><option value="analog">Аналог зарубежного вина</option>
@@ -89,13 +80,28 @@
                     </select>
                     <input type="number" id="pairing-budget" min="100" step="100" placeholder="Бюджет, ₽" aria-label="Бюджет">
                 </div>
+                </details>
                 <div class="somm-answer" id="pairing-result"></div>
             </section>
 
-            <div class="link-row mt-10">
-                <a href="add.html" id="link-add">Добавить вино в каталог</a>
-                <a href="/search-cascade" id="link-cascade">Каскадный поиск</a>
-            </div>
+            <!-- Инструменты проверки качества и каталога: не для гостей -->
+            <details class="dev-tools">
+                <summary>Для разработчиков</summary>
+                <div class="controls">
+                    <label class="btn btn-secondary btn-upload">
+                        <span>Набор фото</span>
+                        <input type="file" id="batch-files-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple hidden>
+                    </label>
+                    <label class="btn btn-secondary btn-upload">
+                        <span>Папка с фото</span>
+                        <input type="file" id="batch-folder-input" webkitdirectory multiple hidden>
+                    </label>
+                </div>
+                <div class="link-row mt-10">
+                    <a href="add.html" id="link-add">Добавить вино в каталог</a>
+                    <a href="/search-cascade" id="link-cascade">Каскадный поиск</a>
+                </div>
+            </details>
         </main>
 
         <!-- Batch View: проверка набора фото -->
@@ -148,6 +154,13 @@
                 <div class="status-title" id="status-title"></div>
             </section>
 
+            <!-- Кандидаты каскада: другие кандидаты («похоже») или похожие этикетки («нет в каталоге») -->
+            <details class="section-card fold" id="candidates-section">
+                <summary><h3 id="candidates-title">Другие кандидаты</h3></summary>
+                <p id="candidates-hint"></p>
+                <div id="candidates-list"></div>
+            </details>
+
             <div id="wine-block">
                 <div class="wine-card">
                     <div class="wine-image-container">
@@ -156,7 +169,7 @@
                             <div class="badge-icon-wrapper">
                                 <img src="img/glass_filled_straight.png" alt="" class="badge-icon">
                             </div>
-                            Рейтинг <span id="badge-score">-</span>
+                            Моя оценка <span id="badge-score">-</span>
                         </div>
                     </div>
 
@@ -175,7 +188,10 @@
                             <span class="prop-value" id="wine-grape"></span>
                         </div>
 
-                        <div class="wine-description" id="wine-description"></div>
+                        <details class="fold-inline wine-desc-fold" id="wine-desc-fold">
+                            <summary>Описание, аромат и вкус</summary>
+                            <div class="wine-description" id="wine-description"></div>
+                        </details>
                     </div>
                 </div>
 
@@ -225,35 +241,33 @@
                 </section>
 
                 <!-- Что к этой бутылке (С2) и «Похожее, но российское» (С3) — по справочнику сортов -->
-                <section class="section-card mt-10" id="wine-pairing-section" style="margin-top: 24px;">
-                    <h3>Подойдёт к блюдам</h3>
+                <!-- Тяжёлые блоки свёрнуты: раскрываются по нажатию, экран не превращается в длинную ленту -->
+                <details class="section-card fold" id="wine-pairing-section">
+                    <summary><h3>Подойдёт к блюдам</h3><span class="fold-hint">5 блюд и похожие российские вина</span></summary>
                     <div id="wine-pairing"></div>
-                </section>
+                </details>
 
-                <section class="section-card mt-10" id="alternatives-section" style="margin-top: 24px;">
-                    <h3>Похожие вина из каталога</h3>
-                    <p>Подобраны сомелье по стилю: цвет, сладость, сорт, регион.</p>
+                <details class="section-card fold" id="alternatives-section">
+                    <summary><h3>Похожие вина из каталога</h3><span class="fold-hint">по стилю: цвет, сладость, сорт, регион</span></summary>
                     <div id="alternatives-list"></div>
-                </section>
+                </details>
             </div>
 
-            <!-- Кандидаты каскада: другие кандидаты («похоже») или похожие этикетки («нет в каталоге») -->
-            <section class="section-card" id="candidates-section">
-                <h3 id="candidates-title">Другие кандидаты</h3>
-                <p id="candidates-hint"></p>
-                <div id="candidates-list"></div>
-            </section>
-
             <!-- Чат с сомелье: всегда доступен, особенно если вина нет в каталоге -->
-            <section class="section-card" id="chat-section">
-                <h3>Спросить сомелье</h3>
+            <details class="section-card fold" id="chat-section">
+                <summary><h3>Спросить сомелье</h3><span class="fold-hint">блюдо, вкус или любой вопрос о вине</span></summary>
                 <p id="chat-hint">Опишите блюдо или вкус — сомелье подберёт вино из каталога.</p>
                 <form class="ask-form" id="chat-form">
                     <input type="text" id="chat-input" maxlength="300" placeholder="Например: стейк, люблю бархатные красные">
                     <button type="submit" class="btn btn-primary">Спросить</button>
                 </form>
                 <div class="somm-text somm-answer" id="chat-answer"></div>
-            </section>
+            </details>
+
+            <button type="button" class="btn-new-scan" id="btn-new-scan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>Новый скан</span>
+            </button>
             <div id="toast" class="toast"></div>
         </main>
 

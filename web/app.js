@@ -63,6 +63,15 @@ async function getJson(url, options) {
 
 const fmt = (value, digits = 3) => (typeof value === 'number' ? value.toFixed(digits) : '—');
 
+// Ошибка для гостя: без кодов HTTP и английских сообщений браузера
+function friendlyError(error) {
+    const text = String((error && error.message) || error || '');
+    if (/failed to fetch|networkerror|load failed|network request failed/i.test(text)) return 'нет связи с сервером. Проверьте интернет и попробуйте ещё раз';
+    if (/internal server error|HTTP 5\d\d|bad gateway|service unavailable|gateway timeout/i.test(text)) return 'сервер сейчас не отвечает. Попробуйте ещё раз через минуту';
+    if (/HTTP 4\d\d/i.test(text)) return 'запрос не удался. Попробуйте ещё раз';
+    return text;
+}
+
 // ---------- Распознавание ----------
 async function cascadeSearch(blob) {
     const body = new FormData();
@@ -88,7 +97,7 @@ async function submit(blob) {
         renderResult(data, id, photoUrl);
         showView('result');
     } catch (error) {
-        scannerHint.textContent = `Ошибка распознавания: ${error.message}`;
+        scannerHint.textContent = `Не удалось распознать: ${friendlyError(error)}.`;
         showView('scanner');
     } finally {
         busy = false;
@@ -117,8 +126,13 @@ function renderResult(data, id, originalUrl) {
     const others = winner ? data.final_results.slice(1) : data.final_results;
     const showCandidates = data.status !== 'found' && others.length > 0;
     $('candidates-section').classList.toggle('hidden', !showCandidates);
+    // новый ответ — блоки снова свёрнуты; без вина в каталоге сразу раскрыты кандидаты и чат
+    ['wine-desc-fold', 'wine-pairing-section', 'alternatives-section'].forEach(key => { $(key).open = false; });
+    $('candidates-section').open = !winner;
+    $('chat-section').open = !winner;
     if (showCandidates) {
-        $('candidates-title').textContent = winner ? 'Другие кандидаты' : 'Похожие этикетки каталога';
+        const shown = Math.min(others.length, 4);
+        $('candidates-title').textContent = winner ? `Не то вино? Другие кандидаты (${shown})` : `Похожие этикетки каталога (${shown})`;
         $('candidates-hint').textContent = winner
             ? 'Если на этикетке другое вино — оно может быть среди этих кандидатов.'
             : 'Это другие вина: такого низкого сходства не бывает у вин из каталога.';
@@ -170,6 +184,7 @@ async function renderWine(winner, status, id) {
     $('wine-description').textContent = winner.description || '';
     $('wine-description').classList.remove('structured');
     $('wine-description').classList.toggle('hidden', !winner.description);
+    $('wine-desc-fold').classList.toggle('hidden', !winner.description);
     ['wine-category', 'wine-color', 'wine-region'].forEach(key => setTag($(key), ''));
     $('wine-grape-row').classList.add('hidden');
     $('somm-note-probable').classList.toggle('hidden', status !== 'probable');
@@ -202,6 +217,7 @@ async function renderWine(winner, status, id) {
             $('wine-grape-row').classList.remove('hidden');
         }
         if (info.value.profile) renderProfile($('wine-description'), info.value.profile);
+        if (!$('wine-description').classList.contains('hidden')) $('wine-desc-fold').classList.remove('hidden');
     }
     onWineShown(winner, status, info.status === 'fulfilled' ? info.value : null,
         product.status === 'fulfilled' ? product.value.image_url : null, returnTo !== 'batch');
@@ -308,7 +324,7 @@ async function pairWith(dish) {
         const start = result.text.indexOf('К этому блюду');  // справка о вине доступна по кнопке «О вине»
         answer.textContent = start >= 0 ? result.text.slice(start) : result.text;
     } catch (error) {
-        answer.textContent = `Сомелье недоступен: ${error.message}`;
+        answer.textContent = `Сомелье недоступен: ${friendlyError(error)}.`;
     }
 }
 
@@ -361,6 +377,11 @@ function renderPairing(node, p) {
     if (p.dish.traits && p.dish.traits.length) summary.append(chips(p.dish.traits, 'trait'));
     hero.append(scoreRing(p.score, p.verdict.level), summary);
     parts.push(hero);
+    // подробности (место в каталоге, доводы, «в базе не указано», лучшие блюда) — под одной кнопкой, без длинной ленты
+    const more = document.createElement('details');
+    more.className = 'pr-more';
+    more.append(el('summary', '', 'Почему так и с чем лучше'));
+    const detailParts = [];
 
     // место среди всех вин каталога к этому блюду
     const rank = el('div', 'pr-rank');
@@ -372,7 +393,7 @@ function renderPairing(node, p) {
     const ends = el('div', 'wd-scale-ends');
     ends.append(el('span', '', 'хуже'), el('span', '', `лучшее в каталоге — ${Math.round(p.best)}`));
     rank.append(track, ends);
-    parts.push(rank);
+    detailParts.push(rank);
 
     const groups = [['plus', 'Что работает'], ['minus', 'Что мешает']];
     if (p.verdict.level === 'poor') groups.reverse();  // при плохой паре сначала причина
@@ -381,13 +402,13 @@ function renderPairing(node, p) {
         if (!items.length) return;
         const box = el('div', `pr-group pr-${sign}`);
         box.append(el('div', 'pr-group-title', title), ...items.map(factorRow));
-        parts.push(box);
+        detailParts.push(box);
     });
 
     if (p.unknown && p.unknown.length) {
         const box = el('div', 'pr-unknown');
         box.append(el('span', 'pr-unknown-label', 'В базе не указано:'), chips(p.unknown, 'unknown'));
-        parts.push(box);
+        detailParts.push(box);
     }
 
     if (p.better_dishes && p.better_dishes.length) {
@@ -412,8 +433,11 @@ function renderPairing(node, p) {
             card.append(el('span', 'pr-unknown-label', 'Карточка вина советует:'), chips(p.card_foods, 'food'));
             box.append(card);
         }
-        parts.push(box);
+        detailParts.push(box);
     }
+
+    more.append(...detailParts);
+    if (detailParts.length) parts.push(more);
 
     if (p.note) parts.push(el('div', 'pr-note', p.note));
     node.replaceChildren(...parts);
@@ -526,6 +550,7 @@ function renderAbout(node, info) {
 }
 
 $('btn-chat').addEventListener('click', () => {
+    $('chat-section').open = true;
     $('chat-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('chat-input').focus({ preventScroll: true });
 });
@@ -552,7 +577,7 @@ $('chat-form').addEventListener('submit', async event => {
         }
     } catch (error) {
         answer.classList.remove('pairing-graphic');
-        answer.textContent = `Ошибка: ${error.message}`;
+        answer.textContent = `Сомелье недоступен: ${friendlyError(error)}.`;
     }
 });
 
@@ -602,8 +627,9 @@ function renderRecommendation(node, data) {
     parts.push(head, ...data.picks.map(pickCard));
 
     if (data.types && data.types.length) {
-        const box = el('div', 'pr-group pc2-grapes');
-        box.append(el('div', 'pr-group-title', 'Какие типы вина уместны'));
+        const box = document.createElement('details');
+        box.className = 'pr-group pc2-grapes pr-more';
+        box.append(el('summary', '', 'Какие типы вина уместны'));
         TYPE_VERDICTS.forEach(([verdict, cls, title]) => {
             const rows = data.types.slice(0, 8).filter(t => t.verdict === verdict);
             if (!rows.length) return;
@@ -948,7 +974,7 @@ $('pairing-form').addEventListener('submit', async event => {
         });
         renderPairingResult(node, data);
     } catch (error) {
-        node.replaceChildren(el('p', 'somm-text', `Сомелье недоступен: ${error.message}`));
+        node.replaceChildren(el('p', 'somm-text', `Сомелье недоступен: ${friendlyError(error)}.`));
     }
 });
 
@@ -968,7 +994,7 @@ async function loadWinePairing(slug, id) {
     try {
         data = await getJson(api(`/api/sommelier/pairing/wine/${encodeURIComponent(slug)}`));
     } catch (error) {
-        if (id === request) node.replaceChildren(el('p', 'item-meta', `Сочетания недоступны: ${error.message}`));
+        if (id === request) node.replaceChildren(el('p', 'item-meta', `Сочетания недоступны: ${friendlyError(error)}.`));
         return;
     }
     if (id !== request) return;
@@ -1217,6 +1243,7 @@ fileInput.addEventListener('change', () => {
     fileInput.value = '';
 });
 $('btn-back').addEventListener('click', () => { scannerHint.textContent = ''; showView(returnTo); });
+$('btn-new-scan').addEventListener('click', () => { scannerHint.textContent = ''; showView('scanner'); });
 $('btn-show-original').addEventListener('click', () => showView('original'));
 $('btn-back-to-result').addEventListener('click', () => showView('result'));
 
@@ -1335,16 +1362,20 @@ async function checkServerHealth() {
     const text = $('status-text');
     dot.className = 'status-dot';
     text.textContent = 'Проверка…';
+    const OFFLINE_HINT = 'Сервер распознавания сейчас недоступен — распознавание и сомелье не ответят. Попробуйте чуть позже.';
     try {
         const response = await fetch(api('/api/ready'));
         dot.className = `status-dot ${response.ok ? 'online' : 'offline'}`;
         text.textContent = response.ok ? 'Онлайн' : 'Не готов';
+        if (!response.ok) scannerHint.textContent = OFFLINE_HINT;
+        else if (scannerHint.textContent === OFFLINE_HINT) scannerHint.textContent = '';
     } catch {
         dot.className = 'status-dot offline';
         text.textContent = 'Офлайн';
+        scannerHint.textContent = OFFLINE_HINT;
     }
 }
 
 updateServerLinks();
 checkServerHealth();
-start();
+start().finally(checkServerHealth);   // повтор после камеры: её подсказка не должна затирать «сервер недоступен»

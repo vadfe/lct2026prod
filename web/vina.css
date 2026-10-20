@@ -1412,3 +1412,59 @@ button:disabled { opacity: .5; cursor: default; }
 .pc2-grape-title.maybe { color: #96692c; }
 .pc2-card .pr-unknown { margin-top: 10px; padding: 0; }
 .pc2-card .rc-quote { margin-top: 10px; padding-left: 10px; border-left: 3px solid #edd4d6; color: #5d5753; font-style: italic; }
+
+/* ===================== Мобильная читаемость и свёрнутые блоки (тикет T-001) ===================== */
+
+/* Раскрывающиеся секции результата: заголовок-кнопка со стрелкой, содержимое — по нажатию */
+details.fold { padding: 0; overflow: hidden; }
+details.fold > summary {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 16px 44px 16px 18px;
+    list-style: none; cursor: pointer; position: relative; min-height: 52px;
+}
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::after {
+    content: ""; position: absolute; right: 18px; top: 50%; width: 9px; height: 9px; margin-top: -7px;
+    border-right: 2px solid var(--primary); border-bottom: 2px solid var(--primary); transform: rotate(45deg); transition: transform .2s;
+}
+details.fold[open] > summary::after { transform: rotate(-135deg); margin-top: -2px; }
+details.fold > summary h3 { margin: 0; font-size: 17px; }
+details.fold .fold-hint { font-size: 13px; color: var(--text-secondary); }
+details.fold > :not(summary) { margin-left: 18px; margin-right: 18px; }
+details.fold[open] { padding-bottom: 16px; }
+#wine-block > details.fold, #result-view > details.fold { margin-top: 12px; margin-bottom: 12px; }
+
+/* Мелкие раскрывашки внутри карточек: фильтры подбора, описание вина, «Почему так», «Какие типы уместны» */
+.fold-inline > summary, .pr-more > summary, .dev-tools > summary {
+    cursor: pointer; font-size: 14px; font-weight: 600; color: var(--primary); padding: 10px 0; list-style-position: inside;
+}
+.wine-desc-fold { margin-top: 10px; }
+.wine-desc-fold > .wine-description { margin-top: 6px; }
+.pr-more { margin-top: 10px; border-top: 1px dashed #ebe5df; }
+.pr-more[open] > summary { margin-bottom: 6px; }
+
+/* Инструменты разработчика — внизу главного экрана, свёрнуты */
+.dev-tools { margin-top: 18px; padding: 4px 4px 0; border-top: 1px dashed #ddd; }
+.dev-tools > summary { color: var(--text-secondary); font-weight: 500; }
+.dev-tools .controls { margin-top: 6px; }
+
+/* Кадр камеры по высоте экрана: кнопки съёмки остаются видны на небольших телефонах */
+.scanner-frame { height: min(56vh, 400px); }
+@supports (height: 100dvh) { .scanner-frame { height: min(56dvh, 400px); } }
+
+/* «Новый скан» — внизу экрана результата, всегда под пальцем при прокрутке */
+.btn-new-scan {
+    position: sticky; bottom: 14px; z-index: 20; display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 16px auto 0; padding: 13px 22px; border: none; border-radius: 999px; background: var(--primary); color: #fff;
+    font: inherit; font-size: 16px; font-weight: 600; box-shadow: 0 8px 24px rgba(128, 0, 32, .28); cursor: pointer;
+}
+
+/* Шрифты: на мобильном мельче 13 px не читается (подписи шкал-гроздей в узких колонках — 12 px) */
+.people-rating-badge, .stats-small, .field-hint, .list-item .noimg, .item-reasons, .wd-title, .wd-chip, .wd-scale-label,
+.wd-scale-word, .wd-scale-ends, .wd-fact-label, .pr-verdict, .pr-group-title, .pr-quote, .pr-unknown-label, .pr-dish-btn b,
+.pr-note, .rc-role, .rc-winery, .rc-match-label, .rc-type-verdict, .demo-badge, .pc-estimate, .pc-role, .pc-ru, .pc-score,
+.pc-note, .pc-versions, .pc2-dish-kicker, .pc2-role, .pc2-score-word, .pc2-factor, .pc2-grape-title, .mm-label, .mm-word {
+    font-size: 13px;
+}
+.gb-label, .gb-word, .gb-legend { font-size: 12px; }
+.item-meta, .somm-note { font-size: 14px; }
+input[type="text"], input[type="number"], input[type="url"], select, textarea { font-size: 16px; }  /* iOS не увеличивает страницу при фокусе */
